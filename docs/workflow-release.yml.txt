@@ -1,0 +1,100 @@
+name: Release
+
+# Publica uma versão quando você empurra uma tag "vX.Y.Z".
+# Também pode ser disparado à mão (Actions -> Release -> Run workflow), caso em que
+# usa a versão que estiver no module.json e cria a tag correspondente.
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # precisa das tags para saber se a tag já existe
+
+      - name: Instalar o Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Descobrir a versão
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(node -p "require('./module.json').version")"
+          fi
+          echo "value=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Publicando a versão ${VERSION}"
+
+      - name: Injetar versão e URLs no manifesto
+        run: |
+          node tools/prepare-manifest.mjs \
+            "${{ steps.version.outputs.value }}" \
+            "${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Validar o módulo
+        run: node tools/check-module.mjs
+
+      - name: Montar o pacote
+        run: |
+          # Os arquivos vão na RAIZ do zip — é o formato que o instalador do Foundry espera.
+          # docs/ e tools/ ficam de fora para o download não carregar as imagens do README.
+          ITEMS="module.json lang scripts styles templates"
+          for OPTIONAL in LICENSE README.md CHANGELOG.md; do
+            [ -e "$OPTIONAL" ] && ITEMS="$ITEMS $OPTIONAL"
+          done
+          echo "Empacotando: $ITEMS"
+          zip -r spire-map.zip $ITEMS -x "*.DS_Store" "*/.*"
+          unzip -l spire-map.zip
+
+      - name: Escrever as notas da release
+        run: |
+          MANIFEST_URL="${{ github.server_url }}/${{ github.repository }}/releases/latest/download/module.json"
+          cat > release-notes.md <<EOF
+          ## Instalação
+
+          No Foundry VTT: **Add-on Modules → Install Module**, cole em *Manifest URL*:
+
+          \`\`\`
+          ${MANIFEST_URL}
+          \`\`\`
+
+          Quem já tem o módulo instalado por essa URL vê a atualização direto na lista de módulos.
+
+          ## Arquivos
+
+          - \`spire-map.zip\` — o módulo (arquivos na raiz, para o instalador do Foundry)
+          - \`module.json\` — o manifesto desta versão
+          EOF
+          cat release-notes.md
+
+      - name: Criar a release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          # Quando o disparo é manual, a tag ainda não existe.
+          if ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
+
+          gh release create "$TAG" \
+            --title "Spire Map $VERSION" \
+            --notes-file release-notes.md \
+            module.json spire-map.zip

@@ -1,0 +1,599 @@
+{{!-- Painel principal do Spire Map — Foundry VTT v13 (ApplicationV2) --}}
+<div class="spire-layout">
+
+  <nav class="spire-tabs" role="tablist">
+    {{#each tabs}}
+      <button type="button" class="spire-tab {{#if active}}active{{/if}}" data-action="tab" data-tab="{{id}}"
+              role="tab" aria-selected="{{#if active}}true{{else}}false{{/if}}">
+        <i class="{{icon}}"></i><span>{{localize label}}</span>
+      </button>
+    {{/each}}
+  </nav>
+
+  <div class="spire-columns">
+
+    {{!-- ============================ FORMULÁRIO ============================ --}}
+    <section class="spire-form-scroll">
+
+      {{!-- ---------------------------- ESTRUTURA --------------------------- --}}
+      <div class="spire-panel {{#if tabActive.structure}}active{{/if}}" data-panel="structure">
+        <div class="spire-group">
+          <div class="spire-field spire-field--wide">
+            <label for="spire-seed">{{localize "SPIREMAP.fields.seed"}}</label>
+            <div class="spire-inline">
+              <input id="spire-seed" type="text" name="seed" value="{{config.seed}}"
+                     placeholder="{{localize 'SPIREMAP.fields.seedPlaceholder'}}">
+              <button type="button" class="spire-icon-btn" data-action="randomSeed"
+                      data-tooltip="{{localize 'SPIREMAP.buttons.randomSeed'}}">
+                <i class="fa-solid fa-dice"></i>
+              </button>
+              <button type="button" class="spire-icon-btn" data-action="refresh"
+                      data-tooltip="{{localize 'SPIREMAP.buttons.refresh'}}">
+                <i class="fa-solid fa-rotate"></i>
+              </button>
+            </div>
+            <p class="hint">{{localize "SPIREMAP.hints.seed"}}</p>
+          </div>
+
+          <div class="spire-field">
+            <label for="spire-preset">{{localize "SPIREMAP.fields.preset"}}</label>
+            <select id="spire-preset" name="__preset">
+              <option value="">{{localize "SPIREMAP.fields.presetPick"}}</option>
+              {{#each presets}}<option value="{{id}}">{{localize label}}</option>{{/each}}
+            </select>
+          </div>
+
+          <div class="spire-field">
+            <label for="spire-act">{{localize "SPIREMAP.fields.act"}}</label>
+            <input id="spire-act" type="number" name="act" value="{{config.act}}" min="1" max="99" step="1">
+          </div>
+        </div>
+
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.grid"}}</h3>
+        <div class="spire-group">
+          <div class="spire-field">
+            <label for="spire-floors">{{localize "SPIREMAP.fields.floors"}}</label>
+            <input id="spire-floors" type="number" name="floors" value="{{config.floors}}" min="2" max="40" step="1">
+            <p class="hint">{{localize "SPIREMAP.hints.floors"}}</p>
+          </div>
+          <div class="spire-field">
+            <label for="spire-paths">{{localize "SPIREMAP.fields.paths"}}</label>
+            <input id="spire-paths" type="number" name="paths" value="{{config.paths}}" min="1" max="20" step="1">
+            <p class="hint">{{localize "SPIREMAP.hints.paths"}}</p>
+          </div>
+          <div class="spire-field">
+            <label for="spire-columns">{{localize "SPIREMAP.fields.columns"}}</label>
+            <input id="spire-columns" type="number" name="columns" value="{{config.columns}}" min="2" max="20" step="1">
+            <p class="hint">{{localize "SPIREMAP.hints.columns"}}</p>
+          </div>
+        </div>
+
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.boss"}}</h3>
+        <div class="spire-group">
+          <label class="spire-check">
+            <input type="checkbox" name="bossEnabled" {{#if config.bossEnabled}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.bossEnabled"}}</span>
+          </label>
+          <div class="spire-field">
+            <label for="spire-bosstype">{{localize "SPIREMAP.fields.bossType"}}</label>
+            <select id="spire-bosstype" name="bossType">
+              {{#each bossTypeOptions}}
+                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+              {{/each}}
+            </select>
+          </div>
+          <div class="spire-field">
+            <label for="spire-orientation">{{localize "SPIREMAP.fields.orientation"}}</label>
+            <select id="spire-orientation" name="orientation">
+              {{#each orientationOptions}}
+                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{localize label}}</option>
+              {{/each}}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {{!-- ----------------------------- REGRAS ---------------------------- --}}
+      <div class="spire-panel {{#if tabActive.rules}}active{{/if}}" data-panel="rules">
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.fixedFloors"}}</h3>
+        <div class="spire-group">
+          <label class="spire-check">
+            <input type="checkbox" name="firstFloorFixed" {{#if config.firstFloorFixed}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.firstFloorFixed"}}</span>
+          </label>
+          <div class="spire-field">
+            <label for="spire-firsttype">{{localize "SPIREMAP.fields.firstFloorType"}}</label>
+            <select id="spire-firsttype" name="firstFloorType">
+              {{#each typeOptions}}
+                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+              {{/each}}
+            </select>
+          </div>
+          <div class="spire-field">
+            <label for="spire-treasure">{{localize "SPIREMAP.fields.treasureFloor"}}</label>
+            <input id="spire-treasure" type="number" name="treasureFloor" value="{{config.treasureFloor}}" min="0" step="1">
+            <p class="hint">{{localize "SPIREMAP.hints.zeroDisables"}}</p>
+          </div>
+          <div class="spire-field">
+            <label for="spire-rest">{{localize "SPIREMAP.fields.restFloor"}}</label>
+            <input id="spire-rest" type="number" name="restFloor" value="{{config.restFloor}}" min="0" step="1">
+            <p class="hint">{{localize "SPIREMAP.hints.zeroDisables"}}</p>
+          </div>
+        </div>
+
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.topology"}}</h3>
+        <div class="spire-group spire-group--stack">
+          <label class="spire-check">
+            <input type="checkbox" name="preventCrossing" {{#if config.preventCrossing}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.preventCrossing"}}</span>
+          </label>
+          <p class="hint">{{localize "SPIREMAP.hints.preventCrossing"}}</p>
+
+          <label class="spire-check">
+            <input type="checkbox" name="preventSmallLoops" {{#if config.preventSmallLoops}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.preventSmallLoops"}}</span>
+          </label>
+          <p class="hint">{{localize "SPIREMAP.hints.preventSmallLoops"}}</p>
+
+          <label class="spire-check">
+            <input type="checkbox" name="distinctStarts" {{#if config.distinctStarts}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.distinctStarts"}}</span>
+          </label>
+
+          <label class="spire-check">
+            <input type="checkbox" name="forceReachableExit" {{#if config.forceReachableExit}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.forceReachableExit"}}</span>
+          </label>
+          <p class="hint">{{localize "SPIREMAP.hints.forceReachableExit"}}</p>
+
+          <label class="spire-check">
+            <input type="checkbox" name="noSameTypeAsSoleParent" {{#if config.noSameTypeAsSoleParent}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.noSameTypeAsSoleParent"}}</span>
+          </label>
+          <p class="hint">{{localize "SPIREMAP.hints.noSameTypeAsSoleParent"}}</p>
+        </div>
+      </div>
+
+      {{!-- --------------------------- TIPOS DE NÓ -------------------------- --}}
+      <div class="spire-panel {{#if tabActive.types}}active{{/if}}" data-panel="types">
+        <div class="spire-toolbar">
+          <button type="button" class="spire-btn" data-action="addType">
+            <i class="fa-solid fa-plus"></i> {{localize "SPIREMAP.buttons.addType"}}
+          </button>
+          <button type="button" class="spire-btn spire-btn--ghost" data-action="resetTypes">
+            <i class="fa-solid fa-arrow-rotate-left"></i> {{localize "SPIREMAP.buttons.resetTypes"}}
+          </button>
+          <span class="spire-weight-total">
+            {{localize "SPIREMAP.fields.totalWeight"}}: <strong>{{totalWeight}}</strong>
+          </span>
+        </div>
+        <p class="hint">{{localize "SPIREMAP.hints.types"}}</p>
+
+        <div class="spire-types">
+          {{#each nodeTypes}}
+            <details class="spire-type">
+              <summary>
+                <span class="spire-chip" style="background:{{fill}};color:{{color}}">{{symbol}}</span>
+                <span class="spire-type__name">{{localized}}</span>
+                {{#if reserved}}
+                  <span class="spire-badge">{{localize "SPIREMAP.types.reserved"}}</span>
+                {{else}}
+                  <span class="spire-badge spire-badge--weight">{{localize "SPIREMAP.fields.weight"}} {{weight}}</span>
+                {{/if}}
+                <span class="spire-type__actions">
+                  <button type="button" class="spire-icon-btn" data-action="moveType" data-index="{{index}}" data-dir="up"
+                          data-tooltip="{{localize 'SPIREMAP.buttons.moveUp'}}" {{#if isFirst}}disabled{{/if}}>
+                    <i class="fa-solid fa-chevron-up"></i>
+                  </button>
+                  <button type="button" class="spire-icon-btn" data-action="moveType" data-index="{{index}}" data-dir="down"
+                          data-tooltip="{{localize 'SPIREMAP.buttons.moveDown'}}" {{#if isLast}}disabled{{/if}}>
+                    <i class="fa-solid fa-chevron-down"></i>
+                  </button>
+                  <button type="button" class="spire-icon-btn spire-icon-btn--danger" data-action="removeType"
+                          data-index="{{index}}" data-tooltip="{{localize 'SPIREMAP.buttons.removeType'}}">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </span>
+              </summary>
+
+              <div class="spire-group spire-group--dense">
+                <div class="spire-field">
+                  <label>{{localize "SPIREMAP.fields.typeId"}}</label>
+                  <input type="text" name="nodeTypes.{{index}}.id" value="{{id}}">
+                </div>
+                <div class="spire-field">
+                  <label>{{localize "SPIREMAP.fields.typeLabel"}}</label>
+                  <input type="text" name="nodeTypes.{{index}}.label" value="{{localized}}">
+                </div>
+                <div class="spire-field spire-field--tiny">
+                  <label>{{localize "SPIREMAP.fields.symbol"}}</label>
+                  <input type="text" name="nodeTypes.{{index}}.symbol" value="{{symbol}}" maxlength="4">
+                </div>
+                <div class="spire-field spire-field--tiny">
+                  <label>{{localize "SPIREMAP.fields.fill"}}</label>
+                  <input type="color" name="nodeTypes.{{index}}.fill" value="{{fill}}">
+                </div>
+                <div class="spire-field spire-field--tiny">
+                  <label>{{localize "SPIREMAP.fields.color"}}</label>
+                  <input type="color" name="nodeTypes.{{index}}.color" value="{{color}}">
+                </div>
+                <div class="spire-field spire-field--tiny">
+                  <label>{{localize "SPIREMAP.fields.weight"}}</label>
+                  <input type="number" name="nodeTypes.{{index}}.weight" value="{{weight}}" min="0" step="1"
+                         {{#if reserved}}disabled{{/if}}>
+                </div>
+                <div class="spire-field spire-field--tiny">
+                  <label>{{localize "SPIREMAP.fields.minFloor"}}</label>
+                  <input type="number" name="nodeTypes.{{index}}.minFloor" value="{{minFloor}}" min="1" step="1">
+                </div>
+                <div class="spire-field spire-field--tiny">
+                  <label>{{localize "SPIREMAP.fields.maxPerFloor"}}</label>
+                  <input type="number" name="nodeTypes.{{index}}.maxPerFloor" value="{{maxPerFloor}}" min="0" step="1">
+                </div>
+                <div class="spire-field spire-field--tiny">
+                  <label>{{localize "SPIREMAP.fields.maxTotal"}}</label>
+                  <input type="number" name="nodeTypes.{{index}}.maxTotal" value="{{maxTotal}}" min="0" step="1">
+                </div>
+                <div class="spire-field spire-field--wide">
+                  <label>{{localize "SPIREMAP.fields.icon"}}</label>
+                  <div class="spire-inline">
+                    <input type="text" name="nodeTypes.{{index}}.icon" value="{{icon}}"
+                           placeholder="{{localize 'SPIREMAP.fields.iconPlaceholder'}}">
+                    <button type="button" class="spire-icon-btn" data-action="pickIcon" data-index="{{index}}"
+                            data-tooltip="{{localize 'SPIREMAP.buttons.pickIcon'}}">
+                      <i class="fa-solid fa-file-image"></i>
+                    </button>
+                  </div>
+                </div>
+                <label class="spire-check">
+                  <input type="checkbox" name="nodeTypes.{{index}}.noRepeatOnPath" {{#if noRepeatOnPath}}checked{{/if}}>
+                  <span>{{localize "SPIREMAP.fields.noRepeatOnPath"}}</span>
+                </label>
+                <label class="spire-check">
+                  <input type="checkbox" name="nodeTypes.{{index}}.reserved" {{#if reserved}}checked{{/if}}>
+                  <span>{{localize "SPIREMAP.fields.reserved"}}</span>
+                </label>
+              </div>
+            </details>
+          {{/each}}
+        </div>
+      </div>
+
+      {{!-- ---------------------------- SEGREDO ---------------------------- --}}
+      <div class="spire-panel {{#if tabActive.secret}}active{{/if}}" data-panel="secret">
+        <div class="spire-group spire-group--stack">
+          <label class="spire-check">
+            <input type="checkbox" name="secretNodes" {{#if config.secretNodes}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.secretNodes"}}</span>
+          </label>
+          <p class="hint">{{localize "SPIREMAP.hints.secretNodes"}}</p>
+        </div>
+
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.revealFlow"}}</h3>
+        <div class="spire-group">
+          <div class="spire-field">
+            <label for="spire-revealmode">{{localize "SPIREMAP.fields.revealMode"}}</label>
+            <select id="spire-revealmode" name="revealMode">
+              {{#each revealModeOptions}}
+                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{localize label}}</option>
+              {{/each}}
+            </select>
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label for="spire-lookahead">{{localize "SPIREMAP.fields.revealLookahead"}}</label>
+            <input id="spire-lookahead" type="number" name="revealLookahead"
+                   value="{{config.revealLookahead}}" min="0" max="5" step="1">
+          </div>
+        </div>
+        <p class="hint">{{localize "SPIREMAP.hints.revealLookahead"}}</p>
+
+        <div class="spire-group spire-group--stack">
+          <label class="spire-check">
+            <input type="checkbox" name="revealFirstFloor" {{#if config.revealFirstFloor}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.revealFirstFloor"}}</span>
+          </label>
+          <label class="spire-check">
+            <input type="checkbox" name="hideEdgesUntilRevealed" {{#if config.hideEdgesUntilRevealed}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.hideEdgesUntilRevealed"}}</span>
+          </label>
+          <p class="hint">{{localize "SPIREMAP.hints.hideEdges"}}</p>
+          <label class="spire-check">
+            <input type="checkbox" name="announceReveal" {{#if config.announceReveal}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.announceReveal"}}</span>
+          </label>
+        </div>
+
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.maskLook"}}</h3>
+        <div class="spire-group spire-group--dense">
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.maskSymbol"}}</label>
+            <input type="text" name="maskSymbol" value="{{config.maskSymbol}}" maxlength="4">
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.maskFill"}}</label>
+            <input type="color" name="maskFill" value="{{config.maskFill}}">
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.maskColor"}}</label>
+            <input type="color" name="maskColor" value="{{config.maskColor}}">
+          </div>
+        </div>
+
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.marker"}}</h3>
+        <div class="spire-group spire-group--dense">
+          <label class="spire-check">
+            <input type="checkbox" name="showPartyMarker" {{#if config.showPartyMarker}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.showPartyMarker"}}</span>
+          </label>
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.markerColor"}}</label>
+            <input type="color" name="markerColor" value="{{config.markerColor}}">
+          </div>
+        </div>
+
+        <div class="spire-toolbar spire-toolbar--wrap" style="margin-top:12px">
+          <button type="button" class="spire-btn spire-btn--primary" data-action="openTracker">
+            <i class="fa-solid fa-eye"></i> {{localize "SPIREMAP.buttons.openTracker"}}
+          </button>
+        </div>
+        <p class="hint">{{localize "SPIREMAP.hints.tracker"}}</p>
+      </div>
+
+      {{!-- --------------------------- APARÊNCIA --------------------------- --}}
+      <div class="spire-panel {{#if tabActive.look}}active{{/if}}" data-panel="look">
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.geometry"}}</h3>
+        <div class="spire-group spire-group--dense">
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.nodeRadius"}}</label>
+            <input type="number" name="nodeRadius" value="{{config.nodeRadius}}" min="8" max="200" step="2">
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.spacingX"}}</label>
+            <input type="number" name="spacingX" value="{{config.spacingX}}" min="40" max="800" step="5">
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.spacingY"}}</label>
+            <input type="number" name="spacingY" value="{{config.spacingY}}" min="40" max="800" step="5">
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.jitterX"}}</label>
+            <input type="number" name="jitterX" value="{{config.jitterX}}" min="0" step="2">
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.jitterY"}}</label>
+            <input type="number" name="jitterY" value="{{config.jitterY}}" min="0" step="2">
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.marginX"}}</label>
+            <input type="number" name="marginX" value="{{config.marginX}}" min="0" step="10">
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.marginY"}}</label>
+            <input type="number" name="marginY" value="{{config.marginY}}" min="0" step="10">
+          </div>
+        </div>
+
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.edges"}}</h3>
+        <div class="spire-group spire-group--dense">
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.edgeWidth"}}</label>
+            <input type="number" name="edgeWidth" value="{{config.edgeWidth}}" min="1" max="40" step="1">
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.edgeColor"}}</label>
+            <input type="color" name="edgeColor" value="{{config.edgeColor}}">
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.edgeAlpha"}}</label>
+            <input type="number" name="edgeAlpha" value="{{config.edgeAlpha}}" min="0" max="1" step="0.05">
+          </div>
+          <div class="spire-field">
+            <label>{{localize "SPIREMAP.fields.edgeStyle"}}</label>
+            <select name="edgeStyle">
+              {{#each edgeStyleOptions}}
+                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{localize label}}</option>
+              {{/each}}
+            </select>
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.nodeStrokeWidth"}}</label>
+            <input type="number" name="nodeStrokeWidth" value="{{config.nodeStrokeWidth}}" min="0" max="40" step="1">
+          </div>
+        </div>
+
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.text"}}</h3>
+        <div class="spire-group spire-group--dense">
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.fontSize"}}</label>
+            <input type="number" name="fontSize" value="{{config.fontSize}}" min="8" max="200" step="2">
+          </div>
+          <div class="spire-field">
+            <label>{{localize "SPIREMAP.fields.fontFamily"}}</label>
+            <input type="text" name="fontFamily" value="{{config.fontFamily}}">
+          </div>
+          <div class="spire-field spire-field--wide">
+            <label>{{localize "SPIREMAP.fields.titleText"}}</label>
+            <input type="text" name="titleText" value="{{config.titleText}}"
+                   placeholder="{{localize 'SPIREMAP.fields.titlePlaceholder'}}">
+            <p class="hint">{{localize "SPIREMAP.hints.title"}}</p>
+          </div>
+          <label class="spire-check">
+            <input type="checkbox" name="showSymbols" {{#if config.showSymbols}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.showSymbols"}}</span>
+          </label>
+          <label class="spire-check">
+            <input type="checkbox" name="showLabels" {{#if config.showLabels}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.showLabels"}}</span>
+          </label>
+          <label class="spire-check">
+            <input type="checkbox" name="showFloorNumbers" {{#if config.showFloorNumbers}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.showFloorNumbers"}}</span>
+          </label>
+        </div>
+
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.background"}}</h3>
+        <div class="spire-group spire-group--dense">
+          <label class="spire-check">
+            <input type="checkbox" name="drawBackground" {{#if config.drawBackground}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.drawBackground"}}</span>
+          </label>
+          <div class="spire-field spire-field--tiny">
+            <label>{{localize "SPIREMAP.fields.backgroundColor"}}</label>
+            <input type="color" name="backgroundColor" value="{{config.backgroundColor}}">
+          </div>
+        </div>
+      </div>
+
+      {{!-- ----------------------------- SAÍDA ----------------------------- --}}
+      <div class="spire-panel {{#if tabActive.output}}active{{/if}}" data-panel="output">
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.scene"}}</h3>
+        <div class="spire-group">
+          <div class="spire-field">
+            <label>{{localize "SPIREMAP.fields.target"}}</label>
+            <select name="target">
+              {{#each targetOptions}}
+                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{localize label}}</option>
+              {{/each}}
+            </select>
+          </div>
+          <div class="spire-field spire-field--wide">
+            <label>{{localize "SPIREMAP.fields.newSceneName"}}</label>
+            <input type="text" name="newSceneName" value="{{config.newSceneName}}">
+          </div>
+          <label class="spire-check">
+            <input type="checkbox" name="clearPrevious" {{#if config.clearPrevious}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.clearPrevious"}}</span>
+          </label>
+          <label class="spire-check">
+            <input type="checkbox" name="lockDrawings" {{#if config.lockDrawings}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.lockDrawings"}}</span>
+          </label>
+        </div>
+
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.notes"}}</h3>
+        <div class="spire-group spire-group--stack">
+          <label class="spire-check">
+            <input type="checkbox" name="createNotes" {{#if config.createNotes}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.createNotes"}}</span>
+          </label>
+          <label class="spire-check">
+            <input type="checkbox" name="createJournal" {{#if config.createJournal}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.createJournal"}}</span>
+          </label>
+          <div class="spire-field spire-field--wide">
+            <label>{{localize "SPIREMAP.fields.journalFolderName"}}</label>
+            <input type="text" name="journalFolderName" value="{{config.journalFolderName}}">
+          </div>
+          <label class="spire-check">
+            <input type="checkbox" name="notifyChat" {{#if config.notifyChat}}checked{{/if}}>
+            <span>{{localize "SPIREMAP.fields.notifyChat"}}</span>
+          </label>
+        </div>
+
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.presetsIO"}}</h3>
+        <div class="spire-toolbar spire-toolbar--wrap">
+          <button type="button" class="spire-btn" data-action="saveDefaults">
+            <i class="fa-solid fa-floppy-disk"></i> {{localize "SPIREMAP.buttons.saveDefaults"}}
+          </button>
+          <button type="button" class="spire-btn spire-btn--ghost" data-action="exportSvg">
+            <i class="fa-solid fa-image"></i> {{localize "SPIREMAP.buttons.exportSvg"}}
+          </button>
+          <button type="button" class="spire-btn spire-btn--ghost" data-action="exportJson">
+            <i class="fa-solid fa-file-export"></i> {{localize "SPIREMAP.buttons.exportJson"}}
+          </button>
+          <button type="button" class="spire-btn spire-btn--ghost" data-action="importJson">
+            <i class="fa-solid fa-file-import"></i> {{localize "SPIREMAP.buttons.importJson"}}
+          </button>
+          <button type="button" class="spire-btn spire-btn--danger" data-action="resetAll">
+            <i class="fa-solid fa-triangle-exclamation"></i> {{localize "SPIREMAP.buttons.resetAll"}}
+          </button>
+        </div>
+      </div>
+    </section>
+
+    {{!-- ============================= PREVIEW ============================= --}}
+    <aside class="spire-preview">
+      <div class="spire-preview__bar">
+        <span class="spire-readout"></span>
+        <div class="spire-preview__zoom">
+          <label class="spire-eye" data-tooltip="{{localize 'SPIREMAP.preview.fogToggle'}}">
+            <input type="checkbox" name="__fog" {{#if fogPreview}}checked{{/if}}>
+            <i class="fa-solid fa-user-secret"></i>
+          </label>
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="range" name="__zoom" min="0.05" max="1.5" step="0.01" value="{{zoom}}">
+          <span class="spire-zoom-readout">{{zoomPercent}}%</span>
+          <button type="button" class="spire-icon-btn" data-action="fitPreview"
+                  data-tooltip="{{localize 'SPIREMAP.buttons.fit'}}">
+            <i class="fa-solid fa-expand"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="spire-preview__stage"></div>
+
+      {{#if mapInfo}}
+        <div class="spire-preview__info">
+          <span><i class="fa-solid fa-hashtag"></i> {{mapInfo.seed}}</span>
+          <span><i class="fa-solid fa-circle-nodes"></i> {{mapInfo.nodes}}</span>
+          <span><i class="fa-solid fa-share-nodes"></i> {{mapInfo.edges}}</span>
+          <span><i class="fa-solid fa-layer-group"></i> {{mapInfo.floors}}</span>
+          <span><i class="fa-solid fa-ruler-combined"></i> {{mapInfo.width}}×{{mapInfo.height}}</span>
+          {{#if mapInfo.traversable}}
+            <span class="ok"><i class="fa-solid fa-check"></i> {{localize "SPIREMAP.preview.traversable"}}</span>
+          {{else}}
+            <span class="bad"><i class="fa-solid fa-xmark"></i> {{localize "SPIREMAP.preview.blocked"}}</span>
+          {{/if}}
+        </div>
+      {{/if}}
+
+      <div class="spire-stats"></div>
+
+      {{#if selectedNode}}
+        <div class="spire-selected">
+          <header>
+            <strong>{{selectedNode.label}}</strong>
+            <span>{{localize "SPIREMAP.preview.floor"}} {{selectedNode.floor}}</span>
+            {{#if overrideCount}}
+              <button type="button" class="spire-icon-btn" data-action="clearOverrides"
+                      data-tooltip="{{localize 'SPIREMAP.buttons.clearOverrides'}}">
+                <i class="fa-solid fa-eraser"></i> {{overrideCount}}
+              </button>
+            {{/if}}
+          </header>
+          <label class="spire-field">
+            <span>{{localize "SPIREMAP.preview.changeType"}}</span>
+            <select name="__nodeTypeOverride">
+              {{#each selectedNode.options}}
+                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+              {{/each}}
+            </select>
+          </label>
+        </div>
+      {{else}}
+        <p class="hint spire-hint--center">{{localize "SPIREMAP.preview.clickHint"}}</p>
+      {{/if}}
+    </aside>
+  </div>
+
+  {{!-- ============================== RODAPÉ ============================== --}}
+  <footer class="spire-footer">
+    <button type="button" class="spire-btn" data-action="refresh">
+      <i class="fa-solid fa-rotate"></i> {{localize "SPIREMAP.buttons.refresh"}}
+    </button>
+    <button type="button" class="spire-btn" data-action="randomSeed">
+      <i class="fa-solid fa-dice"></i> {{localize "SPIREMAP.buttons.randomSeed"}}
+    </button>
+    <span class="spire-footer__spacer"></span>
+    {{#if isGM}}
+      <button type="button" class="spire-btn spire-btn--ghost" data-action="clear">
+        <i class="fa-solid fa-broom"></i> {{localize "SPIREMAP.buttons.clear"}}
+      </button>
+      <button type="button" class="spire-btn spire-btn--primary" data-action="paint">
+        <i class="fa-solid fa-paintbrush"></i> {{localize "SPIREMAP.buttons.paint"}}
+      </button>
+    {{else}}
+      <span class="hint">{{localize "SPIREMAP.notify.gmOnly"}}</span>
+    {{/if}}
+  </footer>
+</div>
