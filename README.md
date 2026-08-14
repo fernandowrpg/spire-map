@@ -13,23 +13,21 @@ escolhem o caminho.
 
 ### Opção A — arquivo .zip
 
-O `spire-map.zip` da release traz os arquivos na raiz (é o formato que o instalador do Foundry
-espera), então para extrair na mão crie a pasta primeiro:
-
-1. Crie `Data/modules/spire-map/` na pasta de dados do seu Foundry.
-2. Extraia o conteúdo do `spire-map.zip` **dentro** dela — o resultado deve ser
-   `Data/modules/spire-map/module.json`.
-3. Reinicie o Foundry e ative **Spire Map** em *Configurações → Gerenciar Módulos*.
+1. Descompacte `spire-map.zip` dentro da pasta `Data/modules/` do seu Foundry.
+   O resultado deve ser `Data/modules/spire-map/module.json`.
+2. Reinicie o Foundry e ative **Spire Map** em *Configurações → Gerenciar Módulos*.
 
 ### Opção B — por URL (recomendada)
 
 Em *Add-on Modules → Install Module*, cole no campo **Manifest URL**:
 
 ```
-https://github.com/fernandowrpg/spire-map/releases/latest/download/module.json
+https://github.com/SEU-USUARIO/spire-map/releases/latest/download/module.json
 ```
 
-Assim o Foundry avisa quando sair uma versão nova.
+Assim o Foundry avisa quando sair uma versão nova. Para publicar o módulo no seu próprio
+GitHub e obter essa URL, siga **[docs/PUBLICAR.md](docs/PUBLICAR.md)** — o repositório já vem
+com o workflow que monta e publica cada release.
 
 > A pasta **precisa** se chamar `spire-map` — o Foundry usa o `id` do manifesto para
 > resolver os caminhos dos templates e do CSS.
@@ -300,31 +298,32 @@ o que permite escrever macros que reagem ao mapa desenhado.
 
 ---
 
-## Publicar uma nova versão
+## Publicar e versionar
 
-Cada versão é uma **release** do GitHub com dois anexos: `spire-map.zip` (o módulo, com os
-arquivos na raiz do zip, que é o formato que o instalador do Foundry espera) e `module.json`
-(o manifesto daquela versão). A URL de instalação aponta sempre para a release mais recente:
+O repositório traz dois workflows:
 
-```
-https://github.com/fernandowrpg/spire-map/releases/latest/download/module.json
-```
+* **Validate** — roda a cada push e pull request: sintaxe de todos os scripts, arquivos
+  citados no manifesto, paridade entre `en.json` e `pt-BR.json` e conferência de que toda
+  chave `SPIREMAP.*` usada em scripts e templates existe nos dois idiomas.
+* **Release** — dispara ao empurrar uma tag `vX.Y.Z`: injeta a versão e as URLs no
+  manifesto, valida o módulo, monta o `spire-map.zip` (arquivos na raiz, como o instalador
+  do Foundry espera) e publica a release com o `module.json` anexado.
 
-Para publicar pelo site: **Releases → Create a new release**, tag `vX.Y.Z`, e anexe os dois
-arquivos. O `module.json` precisa ser anexado — é ele que responde naquela URL.
-
-Se quiser que o GitHub monte o zip sozinho, o arquivo `docs/workflow-release.yml.txt` é um
-workflow pronto do GitHub Actions. Para ativá-lo: **Add file → Create new file**, digite o
-caminho `.github/workflows/release.yml` (as barras criam as pastas), cole o conteúdo do `.txt`
-e faça o commit. Depois, em **Settings → Actions → General → Workflow permissions**, marque
-*Read and write permissions*. A partir daí, publicar é **Actions → Release → Run workflow**.
-
-Antes de publicar, dá para validar o módulo (precisa de Node instalado):
+Lançar uma versão é, no fim, isto:
 
 ```bash
-node tools/check-module.mjs        # manifesto, sintaxe, traduções e chaves de i18n
+git tag v1.2.0 && git push origin v1.2.0
+```
+
+E localmente, antes de publicar:
+
+```bash
+node tools/check-module.mjs        # valida tudo
 node tools/prepare-manifest.mjs    # mostra versão e URLs atuais
 ```
+
+O passo a passo completo (criar o repositório, permissões do Actions, instalar por URL,
+solução de problemas) está em **[docs/PUBLICAR.md](docs/PUBLICAR.md)**.
 
 ---
 
@@ -332,6 +331,8 @@ node tools/prepare-manifest.mjs    # mostra versão e URLs atuais
 
 ```
 spire-map/
+├── .github/workflows/     validate.yml e release.yml
+├── tools/                 check-module.mjs e prepare-manifest.mjs
 ├── module.json
 ├── lang/
 │   ├── en.json
@@ -352,10 +353,8 @@ spire-map/
 ├── templates/
 │   ├── map-panel.hbs
 │   └── reveal-tracker.hbs
-├── styles/
-│   └── spire-map.css
-├── tools/                 check-module.mjs e prepare-manifest.mjs (validação, opcional)
-└── docs/                  imagens do README e o workflow pronto para o Actions
+└── styles/
+    └── spire-map.css
 ```
 
 ---

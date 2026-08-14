@@ -10,7 +10,7 @@
  *
  * Uso:
  *   node tools/prepare-manifest.mjs <versao> <url-do-repositorio>
- *   node tools/prepare-manifest.mjs 1.1.0 https://github.com/cittatec/spire-map
+ *   node tools/prepare-manifest.mjs 1.1.0 https://github.com/fernandowrpg/spire-map
  *
  * Sem argumentos, apenas mostra o que está no manifesto hoje.
  */
