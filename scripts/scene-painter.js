@@ -11,8 +11,9 @@
  *
  * Segredo: um nó oculto é o **mesmo documento**, apenas com a aparência de máscara
  * (cor neutra + símbolo "?"). Revelar é uma atualização em lote da aparência — não há
- * documentos duplicados nem risco de os jogadores lerem o tipo real pelo canvas.
- * Ícones, rótulos e notas de nós ocultos ficam `hidden`.
+ * documentos duplicados. Ícones (Tile) e rótulos de nós ocultos ficam `hidden`; as notas
+ * de mapa, que não têm campo de visibilidade no schema do Foundry, só existem enquanto o
+ * nó está revelado (criadas ao revelar, removidas ao ocultar).
  *
  * Todos os documentos criados recebem a flag `spire-map.mapId`, o que permite
  * limpar/regenerar o mapa sem tocar no resto da cena.
@@ -24,13 +25,29 @@ import { MODULE_ID, FLAG } from "./constants.js";
 import { edgePoints } from "./generator.js";
 import { createProgress, applyLookahead, advanceTo, toFog } from "./progress.js";
 
-const DRAW_TYPES = {
-  RECTANGLE: "r",
-  ELLIPSE: "e",
-  POLYGON: "p"
-};
-
-const FILL = { NONE: 0, SOLID: 1 };
+/**
+ * Códigos de forma e enums lidos do próprio Foundry em tempo de execução, com os valores
+ * históricos como reserva. Assim o módulo não quebra se uma versão futura mexer nas
+ * constantes (v13 e v14 usam os mesmos códigos).
+ */
+let _enums = null;
+function enums() {
+  if (_enums) return _enums;
+  const shapes = globalThis.foundry?.data?.ShapeData?.TYPES ?? {};
+  const fills = globalThis.CONST?.DRAWING_FILL_TYPES ?? {};
+  _enums = {
+    shape: {
+      RECTANGLE: shapes.RECTANGLE ?? "r",
+      ELLIPSE: shapes.ELLIPSE ?? "e",
+      POLYGON: shapes.POLYGON ?? "p"
+    },
+    fill: { NONE: fills.NONE ?? 0, SOLID: fills.SOLID ?? 1 },
+    textAnchorBottom: globalThis.CONST?.TEXT_ANCHOR_POINTS?.BOTTOM ?? 1,
+    gridless: globalThis.CONST?.GRID_TYPES?.GRIDLESS ?? 0,
+    ownershipNone: globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.NONE ?? 0
+  };
+  return _enums;
+}
 
 /** Tradução curta. */
 const t = (key, data) => game.i18n.format(key, data ?? {});
@@ -145,7 +162,7 @@ async function resolveScene(config, bounds) {
     height: bounds.height,
     padding: 0.05,
     backgroundColor: config.backgroundColor,
-    grid: { type: CONST.GRID_TYPES.GRIDLESS, size: 100 },
+    grid: { type: enums().gridless, size: 100 },
     tokenVision: false,
     fogExploration: false,
     initial: { x: Math.round(bounds.width / 2), y: Math.round(bounds.height / 2), scale: 0.3 },
@@ -201,7 +218,7 @@ function buildEdgeDrawings(map, mapId, authorId, revealed) {
       x: Math.round(minX),
       y: Math.round(minY),
       shape: {
-        type: DRAW_TYPES.POLYGON,
+        type: enums().shape.POLYGON,
         width: Math.round(width),
         height: Math.round(height),
         points: pts.flatMap((p) => [Math.round(p.x - minX), Math.round(p.y - minY)])
@@ -209,7 +226,7 @@ function buildEdgeDrawings(map, mapId, authorId, revealed) {
       strokeWidth: config.edgeWidth,
       strokeColor: config.edgeColor,
       strokeAlpha: config.edgeAlpha,
-      fillType: FILL.NONE,
+      fillType: enums().fill.NONE,
       fillAlpha: 0,
       bezierFactor: 0,
       elevation: 0,
@@ -250,8 +267,8 @@ function buildNodeDrawings(map, mapId, authorId, localize, revealed) {
       author: authorId,
       x: Math.round(node.x - diameter / 2),
       y: Math.round(node.y - diameter / 2),
-      shape: { type: DRAW_TYPES.ELLIPSE, width: diameter, height: diameter },
-      fillType: FILL.SOLID,
+      shape: { type: enums().shape.ELLIPSE, width: diameter, height: diameter },
+      fillType: enums().fill.SOLID,
       fillColor: look.fillColor,
       fillAlpha: 1,
       strokeWidth: config.nodeStrokeWidth,
@@ -289,11 +306,11 @@ function buildNodeDrawings(map, mapId, authorId, localize, revealed) {
         x: Math.round(node.x - labelWidth / 2),
         y: Math.round(node.y + diameter / 2 + 2),
         shape: {
-          type: DRAW_TYPES.RECTANGLE,
+          type: enums().shape.RECTANGLE,
           width: labelWidth,
           height: Math.round(config.fontSize * 0.9)
         },
-        fillType: FILL.NONE,
+        fillType: enums().fill.NONE,
         fillAlpha: 0,
         strokeWidth: 0,
         strokeAlpha: 0,
@@ -328,8 +345,8 @@ function buildMarker(map, mapId, authorId, progress) {
       author: authorId,
       x: Math.round(base.x - size / 2),
       y: Math.round(base.y - size / 2),
-      shape: { type: DRAW_TYPES.ELLIPSE, width: size, height: size },
-      fillType: FILL.NONE,
+      shape: { type: enums().shape.ELLIPSE, width: size, height: size },
+      fillType: enums().fill.NONE,
       fillAlpha: 0,
       strokeWidth: Math.max(3, Math.round(config.nodeStrokeWidth * 1.4)),
       strokeColor: config.markerColor,
@@ -362,8 +379,8 @@ function buildFloorLabels(map, mapId, authorId) {
       author: authorId,
       x: Math.round(Math.max(0, config.marginX * 0.4 - boxW / 2)),
       y: Math.round(y - boxH / 2),
-      shape: { type: DRAW_TYPES.RECTANGLE, width: boxW, height: boxH },
-      fillType: FILL.NONE,
+      shape: { type: enums().shape.RECTANGLE, width: boxW, height: boxH },
+      fillType: enums().fill.NONE,
       fillAlpha: 0,
       strokeWidth: 0,
       strokeAlpha: 0,
@@ -392,8 +409,8 @@ function buildBackdrop(map, mapId, authorId) {
       author: authorId,
       x: 0,
       y: 0,
-      shape: { type: DRAW_TYPES.RECTANGLE, width: map.bounds.width, height: map.bounds.height },
-      fillType: FILL.SOLID,
+      shape: { type: enums().shape.RECTANGLE, width: map.bounds.width, height: map.bounds.height },
+      fillType: enums().fill.SOLID,
       fillColor: config.backgroundColor,
       fillAlpha: 1,
       strokeWidth: 0,
@@ -419,8 +436,8 @@ function buildBackdrop(map, mapId, authorId) {
       author: authorId,
       x: Math.round((map.bounds.width - boxW) / 2),
       y: Math.max(0, y),
-      shape: { type: DRAW_TYPES.RECTANGLE, width: boxW, height: boxH },
-      fillType: FILL.NONE,
+      shape: { type: enums().shape.RECTANGLE, width: boxW, height: boxH },
+      fillType: enums().fill.NONE,
       fillAlpha: 0,
       strokeWidth: 0,
       strokeAlpha: 0,
@@ -466,69 +483,93 @@ function buildIconTiles(map, mapId, revealed) {
   return out;
 }
 
-async function buildNotes(map, mapId, localize, revealed) {
+/**
+ * Cria uma entrada de diário por nó, **restrita ao Mestre**.
+ *
+ * O nome da entrada revela o tipo da sala, então ela nasce com posse `NONE` para os
+ * jogadores: eles não a veem na barra lateral nem por busca.
+ *
+ * @returns {Promise<Record<string,string>>} mapa nó -> id da entrada
+ */
+async function createJournalEntries(map, mapId, localize) {
   const config = map.config;
-  if (!config.createNotes) return [];
-
   const typeById = new Map(config.nodeTypes.map((ty) => [ty.id, ty]));
-  let entriesByNode = new Map();
 
-  if (config.createJournal) {
-    let folder = game.folders?.find(
-      (f) => f.type === "JournalEntry" && f.name === config.journalFolderName
-    );
-    if (!folder) {
-      folder = await Folder.create({ name: config.journalFolderName, type: "JournalEntry" });
-    }
-
-    const entryData = map.nodes.map((node) => {
-      const type = typeById.get(node.typeId);
-      const label = localize(type?.label ?? node.typeId);
-      const name = `${label} — ${t("SPIREMAP.preview.floor")} ${node.floor}`;
-      return {
-        name,
-        folder: folder?.id ?? null,
-        pages: [
-          {
-            name,
-            type: "text",
-            title: { show: false, level: 1 },
-            text: {
-              format: 1,
-              content:
-                `<p><strong>${label}</strong></p>` +
-                `<p>${t("SPIREMAP.journal.floor")}: ${node.floor} · ${t("SPIREMAP.journal.column")}: ${node.col + 1}</p>` +
-                `<p>${t("SPIREMAP.journal.seed")}: <code>${map.seed}</code></p>` +
-                `<hr><p>${t("SPIREMAP.journal.placeholder")}</p>`
-            }
-          }
-        ],
-        flags: flags(mapId, { [FLAG.KIND]: "journal", node: node.id })
-      };
-    });
-
-    const created = await JournalEntry.createDocuments(entryData);
-    created.forEach((entry, i) => entriesByNode.set(map.nodes[i].id, entry.id));
+  let folder = game.folders?.find(
+    (f) => f.type === "JournalEntry" && f.name === config.journalFolderName
+  );
+  if (!folder) {
+    folder = await Folder.create({ name: config.journalFolderName, type: "JournalEntry" });
   }
 
-  return map.nodes.map((node) => {
+  const entryData = map.nodes.map((node) => {
     const type = typeById.get(node.typeId);
     const label = localize(type?.label ?? node.typeId);
+    const name = `${label} — ${t("SPIREMAP.preview.floor")} ${node.floor}`;
     return {
-      entryId: entriesByNode.get(node.id) ?? null,
-      x: Math.round(node.x),
-      y: Math.round(node.y),
-      texture: { src: type?.icon || "icons/svg/book.svg" },
-      iconSize: Math.max(32, Math.round(config.nodeRadius * 0.7)),
-      text: `${label} (${node.floor})`,
-      fontSize: Math.max(8, Math.round(config.fontSize * 0.5)),
-      textAnchor: CONST.TEXT_ANCHOR_POINTS.BOTTOM,
-      textColor: type?.color ?? "#ffffff",
-      global: true,
-      hidden: config.secretNodes && !revealed.has(node.id),
-      flags: flags(mapId, { [FLAG.KIND]: "note", node: node.id })
+      name,
+      folder: folder?.id ?? null,
+      ownership: { default: enums().ownershipNone },
+      pages: [
+        {
+          name,
+          type: "text",
+          title: { show: false, level: 1 },
+          text: {
+            format: 1,
+            content:
+              `<p><strong>${label}</strong></p>` +
+              `<p>${t("SPIREMAP.journal.floor")}: ${node.floor} · ${t("SPIREMAP.journal.column")}: ${node.col + 1}</p>` +
+              `<p>${t("SPIREMAP.journal.seed")}: <code>${map.seed}</code></p>` +
+              `<hr><p>${t("SPIREMAP.journal.placeholder")}</p>`
+          }
+        }
+      ],
+      flags: flags(mapId, { [FLAG.KIND]: "journal", node: node.id })
     };
   });
+
+  const created = await JournalEntry.createDocuments(entryData);
+  const byNode = {};
+  created.forEach((entry, i) => {
+    byNode[map.nodes[i].id] = entry.id;
+  });
+  return byNode;
+}
+
+/**
+ * Dados de uma nota de mapa para um nó.
+ *
+ * `Note` **não tem campo `hidden`** em nenhuma versão do Foundry (conferido nos schemas
+ * v13 e v14), por isso a nota de um nó oculto simplesmente **não é criada** — e é
+ * removida se o nó voltar a ficar oculto. É o que garante que o nome da sala não apareça
+ * no canvas antes da hora.
+ */
+function buildNoteData(node, map, mapId, localize, entryId) {
+  const config = map.config;
+  const type = config.nodeTypes.find((ty) => ty.id === node.typeId);
+  const label = localize(type?.label ?? node.typeId);
+  return {
+    entryId: entryId ?? null,
+    x: Math.round(node.x),
+    y: Math.round(node.y),
+    texture: { src: type?.icon || "icons/svg/book.svg" },
+    iconSize: Math.max(32, Math.round(config.nodeRadius * 0.7)),
+    text: `${label} (${node.floor})`,
+    fontSize: Math.max(8, Math.round(config.fontSize * 0.5)),
+    textAnchor: enums().textAnchorBottom,
+    textColor: type?.color ?? "#ffffff",
+    global: true,
+    flags: flags(mapId, { [FLAG.KIND]: "note", node: node.id })
+  };
+}
+
+/** Quais nós devem ter nota agora. */
+function notesWanted(map, revealed) {
+  const config = map.config;
+  if (!config.createNotes) return new Set();
+  if (!config.secretNodes) return new Set(map.nodes.map((n) => n.id));
+  return new Set(map.nodes.filter((n) => revealed.has(n.id)).map((n) => n.id));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -536,9 +577,10 @@ async function buildNotes(map, mapId, localize, revealed) {
 /* -------------------------------------------------------------------------- */
 
 /** Versão enxuta do mapa, guardada na flag da cena para o controle de revelação. */
-export function trimMap(map, mapId) {
+export function trimMap(map, mapId, journal = {}) {
   return {
     mapId,
+    journal,
     seed: map.seed,
     totalFloors: map.totalFloors,
     bounds: map.bounds,
@@ -570,8 +612,10 @@ export function inflateMap(stored) {
   for (const node of stored.nodes) counts[node.typeId] = (counts[node.typeId] ?? 0) + 1;
 
   return {
+    mapId: stored.mapId,
     seed: stored.seed,
     config: stored.config,
+    journal: stored.journal ?? {},
     totalFloors,
     nodes: stored.nodes,
     byFloor,
@@ -618,6 +662,8 @@ export async function paintMap(map, options = {}) {
   const authorId = game.user.id;
   const progress = createProgress(map, config, mapId);
   const revealed = new Set(progress.revealed);
+  /** @type {Record<string,string>} nó -> id da entrada de diário */
+  let journalByNode = {};
 
   const drawings = [
     ...buildBackdrop(map, mapId, authorId),
@@ -638,7 +684,11 @@ export async function paintMap(map, options = {}) {
       const made = await scene.createEmbeddedDocuments("Tile", tiles);
       created += made.length;
     }
-    const notes = await buildNotes(map, mapId, localize, revealed);
+    if (config.createJournal) journalByNode = await createJournalEntries(map, mapId, localize);
+    const wanted = notesWanted(map, revealed);
+    const notes = map.nodes
+      .filter((n) => wanted.has(n.id))
+      .map((n) => buildNoteData(n, map, mapId, localize, journalByNode[n.id]));
     if (notes.length) {
       const made = await scene.createEmbeddedDocuments("Note", notes);
       created += made.length;
@@ -649,7 +699,7 @@ export async function paintMap(map, options = {}) {
     return null;
   }
 
-  await scene.setFlag(MODULE_ID, FLAG.MAP, trimMap(map, mapId));
+  await scene.setFlag(MODULE_ID, FLAG.MAP, trimMap(map, mapId, journalByNode));
   await scene.setFlag(MODULE_ID, FLAG.PROGRESS, progress);
   await scene.setFlag(MODULE_ID, "lastMap", {
     mapId,
@@ -692,15 +742,16 @@ export async function paintMap(map, options = {}) {
  * @param {object} progress
  * @returns {Promise<{updated:number}>}
  */
-export async function applyProgressToScene(scene, map, progress) {
+export async function applyProgressToScene(scene, map, progress, options = {}) {
   if (!scene || !map) return { updated: 0 };
+  const localizeFn =
+    options.localize ?? ((k) => (game.i18n?.has?.(k) ? game.i18n.localize(k) : k));
   const config = map.config;
   const revealed = new Set(progress?.revealed ?? []);
   const nodeById = new Map(map.nodes.map((n) => [n.id, n]));
 
   const drawingUpdates = [];
   const tileUpdates = [];
-  const noteUpdates = [];
 
   for (const doc of scene.getEmbeddedCollection("Drawing")) {
     const f = moduleFlags(doc);
@@ -744,7 +795,7 @@ export async function applyProgressToScene(scene, map, progress) {
           hidden: false,
           x: Math.round(current.x - size / 2),
           y: Math.round(current.y - size / 2),
-          shape: { type: DRAW_TYPES.ELLIPSE, width: size, height: size }
+          shape: { type: enums().shape.ELLIPSE, width: size, height: size }
         };
         if (
           doc.hidden !== false ||
@@ -768,24 +819,42 @@ export async function applyProgressToScene(scene, map, progress) {
     if (doc.hidden !== hidden) tileUpdates.push({ _id: doc.id, hidden });
   }
 
+  /* Notas: como o documento Note não tem campo de visibilidade, a nota de um nó oculto
+     não existe — é criada ao revelar e removida ao ocultar. */
+  const wanted = notesWanted(map, revealed);
+  const existingNotes = new Map();
   for (const doc of scene.getEmbeddedCollection("Note")) {
     const f = moduleFlags(doc);
-    if (f[FLAG.KIND] !== "note") continue;
-    const hidden = config.secretNodes && !revealed.has(f.node);
-    if (doc.hidden !== hidden) noteUpdates.push({ _id: doc.id, hidden });
+    if (f[FLAG.KIND] === "note" && f[FLAG.MAP_ID]) existingNotes.set(f.node, doc.id);
   }
+  const notesToCreate = [...wanted]
+    .filter((id) => !existingNotes.has(id) && nodeById.has(id))
+    .map((id) =>
+      buildNoteData(nodeById.get(id), map, map.mapId ?? progress?.mapId ?? "", localizeFn, map.journal?.[id])
+    );
+  const notesToDelete = [...existingNotes]
+    .filter(([nodeId]) => !wanted.has(nodeId))
+    .map(([, docId]) => docId);
 
+  let touched = drawingUpdates.length + tileUpdates.length;
   try {
     if (drawingUpdates.length) await scene.updateEmbeddedDocuments("Drawing", drawingUpdates);
     if (tileUpdates.length) await scene.updateEmbeddedDocuments("Tile", tileUpdates);
-    if (noteUpdates.length) await scene.updateEmbeddedDocuments("Note", noteUpdates);
+    if (notesToDelete.length) {
+      await scene.deleteEmbeddedDocuments("Note", notesToDelete);
+      touched += notesToDelete.length;
+    }
+    if (notesToCreate.length) {
+      await scene.createEmbeddedDocuments("Note", notesToCreate);
+      touched += notesToCreate.length;
+    }
     await scene.setFlag(MODULE_ID, FLAG.PROGRESS, progress);
   } catch (err) {
     console.error(`${MODULE_ID} | erro ao sincronizar a revelação`, err);
     ui.notifications?.error(t("SPIREMAP.notify.revealError", { error: err.message }));
   }
 
-  return { updated: drawingUpdates.length + tileUpdates.length + noteUpdates.length };
+  return { updated: touched };
 }
 
 /**

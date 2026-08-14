@@ -58,6 +58,13 @@ if (manifest.id !== "spire-map") {
   fail(`module.json: id "${manifest.id}" — a pasta em Data/modules deve ter o mesmo nome`);
 }
 if (!manifest.compatibility?.minimum) fail("module.json: compatibility.minimum ausente");
+if (!manifest.compatibility?.verified) fail("module.json: compatibility.verified ausente");
+if (manifest.compatibility?.maximum) {
+  notes.push(
+    `module.json: compatibility.maximum = "${manifest.compatibility.maximum}" impede a instalação ` +
+      "em versões maiores do Foundry — só use se souber que a próxima versão quebra o módulo"
+  );
+}
 
 for (const key of ["manifest", "download", "url"]) {
   const value = manifest[key];

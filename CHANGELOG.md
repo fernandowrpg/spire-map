@@ -4,6 +4,33 @@ Todas as mudanças relevantes deste módulo. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões usam
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.2.0] — 2026-08-14
+
+### Adicionado
+
+- Compatibilidade com **Foundry VTT v14** (verificado na 14.365, "Version 14 Stable 7").
+  O módulo continua funcionando no v13 — é um pacote só para as duas versões.
+
+### Corrigido
+
+- **As notas de mapa dos nós ocultos não estavam escondidas.** O documento `Note` não tem
+  campo `hidden` no schema do Foundry (nem no v13 nem no v14), então a flag era descartada
+  em silêncio e o nome da sala aparecia no canvas para os jogadores. Agora a nota de um nó
+  oculto simplesmente não existe: é criada ao revelar e removida ao ocultar.
+- As entradas de diário nascem com posse `NONE` para os jogadores, de forma explícita, para
+  que não apareçam na barra lateral nem em buscas.
+- `compatibility.maximum` estava fixo em `"13"`, o que **bloqueava a instalação no v14**.
+  Removido; agora o manifesto declara `minimum: 13` e `verified: 14`.
+
+### Alterado
+
+- Os códigos de forma dos desenhos e os enums de grade, âncora de texto e posse passaram a
+  ser lidos de `foundry.data.ShapeData.TYPES` e de `CONST` em tempo de execução, com os
+  valores históricos como reserva — o módulo não quebra se uma versão futura mexer nisso.
+- `createNotes` e `createJournal` agora são independentes: dá para ter as entradas de diário
+  (só do Mestre) sem espalhar pinos pelo mapa.
+- O validador (`tools/check-module.mjs`) avisa quando `compatibility.maximum` está definido.
+
 ## [1.1.0] — 2026-08-14
 
 ### Adicionado

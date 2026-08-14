@@ -1,6 +1,6 @@
 # Spire Map — Gerador de Mapas estilo Slay the Spire
 
-Módulo para **Foundry VTT v13** que gera mapas ramificados no estilo *Slay the Spire* e os
+Módulo para **Foundry VTT v13 e v14** que gera mapas ramificados no estilo *Slay the Spire* e os
 desenha diretamente na cena, com um painel de configuração completo, preview ao vivo e
 **revelação progressiva**: as salas nascem secretas e o Mestre as abre conforme os jogadores
 escolhem o caminho.
@@ -13,24 +13,30 @@ escolhem o caminho.
 
 ### Opção A — arquivo .zip
 
-1. Descompacte `spire-map.zip` dentro da pasta `Data/modules/` do seu Foundry.
-   O resultado deve ser `Data/modules/spire-map/module.json`.
-2. Reinicie o Foundry e ative **Spire Map** em *Configurações → Gerenciar Módulos*.
+O `spire-map.zip` da release traz os arquivos na raiz (é o formato que o instalador do Foundry
+espera), então para extrair na mão crie a pasta primeiro:
+
+1. Crie `Data/modules/spire-map/` na pasta de dados do seu Foundry.
+2. Extraia o conteúdo do `spire-map.zip` **dentro** dela — o resultado deve ser
+   `Data/modules/spire-map/module.json`.
+3. Reinicie o Foundry e ative **Spire Map** em *Configurações → Gerenciar Módulos*.
 
 ### Opção B — por URL (recomendada)
 
 Em *Add-on Modules → Install Module*, cole no campo **Manifest URL**:
 
 ```
-https://github.com/SEU-USUARIO/spire-map/releases/latest/download/module.json
+https://github.com/fernandowrpg/spire-map/releases/latest/download/module.json
 ```
 
-Assim o Foundry avisa quando sair uma versão nova. Para publicar o módulo no seu próprio
-GitHub e obter essa URL, siga **[docs/PUBLICAR.md](docs/PUBLICAR.md)** — o repositório já vem
-com o workflow que monta e publica cada release.
+Assim o Foundry avisa quando sair uma versão nova.
 
 > A pasta **precisa** se chamar `spire-map` — o Foundry usa o `id` do manifesto para
 > resolver os caminhos dos templates e do CSS.
+
+Compatibilidade: **v13 e v14** (verificado na 14.365). O manifesto declara
+`minimum: 13` / `verified: 14` e não usa `maximum`, que é o campo que impede a instalação
+em versões novas.
 
 ---
 
@@ -114,8 +120,23 @@ descobrir o conteúdo pelo canvas, pela lista de notas ou pelo diário.
 | **Marcador do grupo** | anel colorido na sala onde o grupo está |
 
 O `?` da máscara é **o mesmo desenho** da sala, só com a aparência trocada — revelar é uma
-atualização em lote de aparência, não uma recriação. Não existe um documento escondido com
-o tipo real que um jogador curioso possa inspecionar.
+atualização em lote de aparência, não uma recriação.
+
+#### O que o segredo protege, e o que não
+
+Ele protege o que os jogadores veem: canvas, rótulos, ícones, pinos de nota e a barra
+lateral do diário. É o suficiente para a mesa toda, inclusive num monitor compartilhado.
+
+O que ele **não** faz é esconder os dados do cliente. O Foundry envia os dados da cena para
+todos os navegadores conectados, então um jogador que abrir o console e ler
+`canvas.scene.flags["spire-map"].map` consegue ver o mapa inteiro. Isso vale para qualquer
+recurso "oculto" do Foundry (desenhos escondidos, tokens escondidos) e não tem solução
+dentro do desenho atual — se a sua mesa precisar disso, o caminho é guardar os tipos em uma
+entrada de diário exclusiva do Mestre, que o servidor nem envia para os jogadores.
+
+Duas coisas que **são** garantidas no servidor: a nota de mapa de um nó oculto não existe
+(é criada ao revelar), e as entradas de diário nascem com posse `NONE` — nesses dois casos o
+jogador não recebe o dado, nem pelo console.
 
 Como o mapa chega para os jogadores (grupo no 4º andar, com um passo à frente revelado):
 
@@ -135,8 +156,9 @@ símbolos, nomes e numeração dos andares, e o retângulo de fundo.
 * **Apagar o mapa anterior** — remove só o que o módulo criou, pela flag `spire-map.mapId`;
   nada mais da cena é tocado.
 * **Travar os desenhos** — evita arrastar os nós por acidente.
-* **Notas de mapa** e **entrada de diário por nó** — opcional, com pasta configurável;
-  cada nó vira uma anotação onde você escreve o encontro.
+* **Notas de mapa** e **entrada de diário por nó** — opcionais e independentes, com pasta
+  configurável; cada nó vira uma anotação onde você escreve o encontro. As entradas são
+  exclusivas do Mestre, e o pino de um nó oculto só aparece quando ele é revelado.
 * **Anunciar no chat**, **salvar como padrão do mundo**, **exportar SVG** e
   **exportar/importar a configuração em JSON**.
 
@@ -298,32 +320,31 @@ o que permite escrever macros que reagem ao mapa desenhado.
 
 ---
 
-## Publicar e versionar
+## Publicar uma nova versão
 
-O repositório traz dois workflows:
+Cada versão é uma **release** do GitHub com dois anexos: `spire-map.zip` (o módulo, com os
+arquivos na raiz do zip, que é o formato que o instalador do Foundry espera) e `module.json`
+(o manifesto daquela versão). A URL de instalação aponta sempre para a release mais recente:
 
-* **Validate** — roda a cada push e pull request: sintaxe de todos os scripts, arquivos
-  citados no manifesto, paridade entre `en.json` e `pt-BR.json` e conferência de que toda
-  chave `SPIREMAP.*` usada em scripts e templates existe nos dois idiomas.
-* **Release** — dispara ao empurrar uma tag `vX.Y.Z`: injeta a versão e as URLs no
-  manifesto, valida o módulo, monta o `spire-map.zip` (arquivos na raiz, como o instalador
-  do Foundry espera) e publica a release com o `module.json` anexado.
-
-Lançar uma versão é, no fim, isto:
-
-```bash
-git tag v1.2.0 && git push origin v1.2.0
+```
+https://github.com/fernandowrpg/spire-map/releases/latest/download/module.json
 ```
 
-E localmente, antes de publicar:
+Para publicar pelo site: **Releases → Create a new release**, tag `vX.Y.Z`, e anexe os dois
+arquivos. O `module.json` precisa ser anexado — é ele que responde naquela URL.
+
+Se quiser que o GitHub monte o zip sozinho, o arquivo `docs/workflow-release.yml.txt` é um
+workflow pronto do GitHub Actions. Para ativá-lo: **Add file → Create new file**, digite o
+caminho `.github/workflows/release.yml` (as barras criam as pastas), cole o conteúdo do `.txt`
+e faça o commit. Depois, em **Settings → Actions → General → Workflow permissions**, marque
+*Read and write permissions*. A partir daí, publicar é **Actions → Release → Run workflow**.
+
+Antes de publicar, dá para validar o módulo (precisa de Node instalado):
 
 ```bash
-node tools/check-module.mjs        # valida tudo
+node tools/check-module.mjs        # manifesto, sintaxe, traduções e chaves de i18n
 node tools/prepare-manifest.mjs    # mostra versão e URLs atuais
 ```
-
-O passo a passo completo (criar o repositório, permissões do Actions, instalar por URL,
-solução de problemas) está em **[docs/PUBLICAR.md](docs/PUBLICAR.md)**.
 
 ---
 
@@ -331,8 +352,6 @@ solução de problemas) está em **[docs/PUBLICAR.md](docs/PUBLICAR.md)**.
 
 ```
 spire-map/
-├── .github/workflows/     validate.yml e release.yml
-├── tools/                 check-module.mjs e prepare-manifest.mjs
 ├── module.json
 ├── lang/
 │   ├── en.json
@@ -353,8 +372,10 @@ spire-map/
 ├── templates/
 │   ├── map-panel.hbs
 │   └── reveal-tracker.hbs
-└── styles/
-    └── spire-map.css
+├── styles/
+│   └── spire-map.css
+├── tools/                 check-module.mjs e prepare-manifest.mjs (validação, opcional)
+└── docs/                  imagens do README e o workflow pronto para o Actions
 ```
 
 ---
@@ -369,7 +390,7 @@ spire-map/
   **Ícone** com uma imagem.
 * Mapas grandes (mais de ~500 nós) criam muitos documentos na cena; é tudo criado em lote,
   mas dê alguns segundos ao Foundry.
-* Testado em Foundry VTT v13.
+* Testado em Foundry VTT v13 e v14 (14.365).
 
 ## Licença
 
