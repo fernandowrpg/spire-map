@@ -4,6 +4,28 @@ Todas as mudanças relevantes deste módulo. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões usam
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.3.2] — 2026-08-14
+
+### Corrigido
+
+- **O mapa saía descentralizado, deslocado para cima e para a esquerda do retângulo da cena.**
+  No Foundry, a origem `(0, 0)` de um documento é o canto do *canvas*, e o canvas inclui a
+  margem (padding) da cena — o retângulo visível começa em `(sceneX, sceneY)`. O módulo
+  desenhava em `(0, 0)`, ou seja, dentro da margem. Agora o mapa é posicionado a partir do
+  retângulo da cena e **centralizado** nele, o que também trata o caso da cena ser maior que
+  o mapa (modos *Só aumentar* e *Não mexer*).
+- O marcador do grupo e as notas criadas durante a revelação passaram a usar a mesma origem
+  do desenho do mapa, que fica guardada na flag da cena.
+- O enquadramento inicial aponta para o centro do mapa em coordenadas do canvas, e é gravado
+  **depois** do redimensionamento — antes ele era calculado com as dimensões antigas.
+
+### Alterado
+
+- O mock de teste passou a expor `Scene#dimensions` com o deslocamento da margem, como o
+  Foundry, e a suíte de pintura mede a caixa ocupada pelos documentos contra o retângulo da
+  cena em seis cenários (ajuste exato, cena grande, margem 0, margem 0,4, com notas e ícones,
+  cena nova). Com o bug de volta, os testes acusam exatamente o deslocamento visto no jogo.
+
 ## [1.3.1] — 2026-08-14
 
 ### Corrigido

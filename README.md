@@ -153,6 +153,9 @@ símbolos, nomes e numeração dos andares, e o retângulo de fundo.
 
 * **Onde desenhar** — na cena ativa ou em uma cena nova, criada sem grade, com visão global
   e já enquadrada.
+* **Posição** — o mapa é sempre desenhado **dentro do retângulo da cena e centralizado nele**.
+  Vale lembrar que, no Foundry, a coordenada `(0, 0)` de um objeto é o canto do canvas, que
+  inclui a margem da cena; o módulo compensa esse deslocamento sozinho.
 * **Tamanho da cena** — *Ajustar exatamente ao mapa* (padrão) faz a cena ativa ter as
   dimensões do mapa, reduzindo **e** aumentando, aplica a **margem da cena** (0,05 contra os
   0,25 padrão do Foundry) e grava o enquadramento inicial, de forma que a cena abra mostrando

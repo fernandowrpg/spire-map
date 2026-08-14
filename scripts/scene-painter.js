@@ -165,7 +165,6 @@ async function resolveScene(config, bounds) {
     grid: { type: enums().gridless, size: 100 },
     tokenVision: false,
     fogExploration: false,
-    initial: frameFor(bounds),
     environment: { globalLight: { enabled: true } },
     flags: { [MODULE_ID]: { generated: true } }
   };
@@ -184,14 +183,56 @@ async function resolveScene(config, bounds) {
 }
 
 /**
- * Enquadramento inicial da cena: centro do mapa e uma escala que mostra o mapa inteiro
- * numa janela de referência de 1600×900. É o que o Foundry usa ao abrir a cena.
+ * Onde o mapa deve ser desenhado dentro da cena.
+ *
+ * No Foundry, a origem `(0, 0)` de um documento é o canto do **canvas**, e o canvas inclui a
+ * margem (padding) da cena: o retângulo visível começa em `(sceneX, sceneY)`. Desenhar em
+ * `(0, 0)` joga o mapa dentro da margem, deslocado para cima e para a esquerda do retângulo.
+ * Por isso o mapa é posicionado a partir do retângulo da cena e **centralizado** nele — o que
+ * também resolve o caso da cena ser maior que o mapa.
+ *
+ * @param {Scene} scene
+ * @param {{width:number,height:number}} bounds
+ * @returns {{x:number,y:number}}
  */
-function frameFor(bounds) {
+export function sceneOrigin(scene, bounds) {
+  let dims = null;
+  try {
+    dims = scene?.dimensions ?? scene?.getDimensions?.() ?? null;
+  } catch (err) {
+    console.warn(`${MODULE_ID} | não foi possível ler as dimensões da cena`, err);
+  }
+
+  const num = (value, fallback) => (Number.isFinite(value) ? value : fallback);
+  const sceneX = num(dims?.sceneX, 0);
+  const sceneY = num(dims?.sceneY, 0);
+  const sceneWidth = num(dims?.sceneWidth, num(scene?.width, bounds.width));
+  const sceneHeight = num(dims?.sceneHeight, num(scene?.height, bounds.height));
+
+  return {
+    x: Math.round(sceneX + Math.max(0, (sceneWidth - bounds.width) / 2)),
+    y: Math.round(sceneY + Math.max(0, (sceneHeight - bounds.height) / 2))
+  };
+}
+
+/** Desloca uma lista de dados de documento para a origem do mapa. */
+function offsetDocs(list, origin) {
+  for (const doc of list) {
+    doc.x = Math.round((doc.x ?? 0) + origin.x);
+    doc.y = Math.round((doc.y ?? 0) + origin.y);
+  }
+  return list;
+}
+
+/**
+ * Enquadramento inicial da cena: centro do mapa (já com o deslocamento) e uma escala que
+ * mostra o mapa inteiro numa janela de referência de 1600×900.
+ */
+function frameFor(bounds, origin = { x: 0, y: 0 }) {
   const scale = Math.min(1600 / bounds.width, 900 / bounds.height);
   return {
-    x: Math.round(bounds.width / 2),
-    y: Math.round(bounds.height / 2),
+    x: Math.round(origin.x + bounds.width / 2),
+    y: Math.round(origin.y + bounds.height / 2),
     scale: Math.round(Math.max(0.25, Math.min(3, scale)) * 100) / 100
   };
 }
@@ -224,12 +265,6 @@ async function applySceneSize(scene, bounds, config) {
     if (scene.height < bounds.height) updates.height = bounds.height;
   }
 
-  const frame = frameFor(bounds);
-  const current = scene.initial ?? null;
-  if (current?.x !== frame.x || current?.y !== frame.y || Number(current?.scale) !== frame.scale) {
-    updates.initial = frame;
-  }
-
   if (!Object.keys(updates).length) return { changed: false, from, to: {} };
 
   try {
@@ -243,13 +278,31 @@ async function applySceneSize(scene, bounds, config) {
 }
 
 /**
+ * Grava o enquadramento inicial da cena. Roda **depois** do redimensionamento, porque a
+ * origem do mapa depende das dimensões e da margem já atualizadas.
+ */
+async function applySceneFraming(scene, bounds, origin, config) {
+  if ((config.resizeScene ?? "exact") === "none") return;
+  const frame = frameFor(bounds, origin);
+  const current = scene.initial ?? null;
+  if (current?.x === frame.x && current?.y === frame.y && Number(current?.scale) === frame.scale) {
+    return;
+  }
+  try {
+    await scene.update({ initial: frame });
+  } catch (err) {
+    console.warn(`${MODULE_ID} | não foi possível gravar o enquadramento inicial`, err);
+  }
+}
+
+/**
  * Move a câmera do Mestre para o mapa, quando a cena ajustada é a que está aberta.
  * Puramente visual e tolerante a falhas.
  */
-async function panToMap(scene, bounds) {
+async function panToMap(scene, bounds, origin) {
   try {
     if (canvas?.scene?.id !== scene.id || typeof canvas.animatePan !== "function") return;
-    const frame = frameFor(bounds);
+    const frame = frameFor(bounds, origin);
     await canvas.animatePan({ x: frame.x, y: frame.y, scale: frame.scale });
   } catch (err) {
     console.debug(`${MODULE_ID} | não foi possível reposicionar a câmera`, err);
@@ -642,10 +695,11 @@ function notesWanted(map, revealed) {
 /* -------------------------------------------------------------------------- */
 
 /** Versão enxuta do mapa, guardada na flag da cena para o controle de revelação. */
-export function trimMap(map, mapId, journal = {}) {
+export function trimMap(map, mapId, journal = {}, origin = { x: 0, y: 0 }) {
   return {
     mapId,
     journal,
+    origin,
     seed: map.seed,
     totalFloors: map.totalFloors,
     bounds: map.bounds,
@@ -678,6 +732,7 @@ export function inflateMap(stored) {
 
   return {
     mapId: stored.mapId,
+    origin: stored.origin ?? { x: 0, y: 0 },
     seed: stored.seed,
     config: stored.config,
     journal: stored.journal ?? {},
@@ -730,6 +785,8 @@ export async function paintMap(map, options = {}) {
   /** @type {Record<string,string>} nó -> id da entrada de diário */
   let journalByNode = {};
 
+  const origin = sceneOrigin(scene, map.bounds);
+
   const drawings = [
     ...buildBackdrop(map, mapId, authorId),
     ...buildFloorLabels(map, mapId, authorId),
@@ -738,6 +795,11 @@ export async function paintMap(map, options = {}) {
     ...buildNodeDrawings(map, mapId, authorId, localize, revealed)
   ];
   const tiles = buildIconTiles(map, mapId, revealed);
+
+  // Tudo é construído em coordenadas do mapa (0,0 no canto do mapa) e só então deslocado
+  // para a origem calculada dentro do retângulo da cena.
+  offsetDocs(drawings, origin);
+  offsetDocs(tiles, origin);
 
   let created = 0;
   try {
@@ -751,9 +813,12 @@ export async function paintMap(map, options = {}) {
     }
     if (config.createJournal) journalByNode = await createJournalEntries(map, mapId, localize);
     const wanted = notesWanted(map, revealed);
-    const notes = map.nodes
-      .filter((n) => wanted.has(n.id))
-      .map((n) => buildNoteData(n, map, mapId, localize, journalByNode[n.id]));
+    const notes = offsetDocs(
+      map.nodes
+        .filter((n) => wanted.has(n.id))
+        .map((n) => buildNoteData(n, map, mapId, localize, journalByNode[n.id])),
+      origin
+    );
     if (notes.length) {
       const made = await scene.createEmbeddedDocuments("Note", notes);
       created += made.length;
@@ -764,7 +829,7 @@ export async function paintMap(map, options = {}) {
     return null;
   }
 
-  await scene.setFlag(MODULE_ID, FLAG.MAP, trimMap(map, mapId, journalByNode));
+  await scene.setFlag(MODULE_ID, FLAG.MAP, trimMap(map, mapId, journalByNode, origin));
   await scene.setFlag(MODULE_ID, FLAG.PROGRESS, progress);
   await scene.setFlag(MODULE_ID, "lastMap", {
     mapId,
@@ -799,9 +864,10 @@ export async function paintMap(map, options = {}) {
     );
   }
 
-  await panToMap(scene, map.bounds);
+  await applySceneFraming(scene, map.bounds, origin, config);
+  await panToMap(scene, map.bounds, origin);
 
-  return { scene, mapId, created, progress, resize };
+  return { scene, mapId, created, progress, resize, origin };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -824,6 +890,8 @@ export async function applyProgressToScene(scene, map, progress, options = {}) {
   const config = map.config;
   const revealed = new Set(progress?.revealed ?? []);
   const nodeById = new Map(map.nodes.map((n) => [n.id, n]));
+  // A mesma origem usada ao pintar, para o marcador e as notas novas caírem no lugar.
+  const origin = map.origin ?? sceneOrigin(scene, map.bounds);
 
   const drawingUpdates = [];
   const tileUpdates = [];
@@ -868,8 +936,8 @@ export async function applyProgressToScene(scene, map, progress, options = {}) {
         const size = Math.round(config.nodeRadius * (current.isBoss ? 1.45 : 1) * 1.7);
         const change = {
           hidden: false,
-          x: Math.round(current.x - size / 2),
-          y: Math.round(current.y - size / 2),
+          x: Math.round(current.x - size / 2 + origin.x),
+          y: Math.round(current.y - size / 2 + origin.y),
           shape: { type: enums().shape.ELLIPSE, width: size, height: size }
         };
         if (
@@ -902,11 +970,14 @@ export async function applyProgressToScene(scene, map, progress, options = {}) {
     const f = moduleFlags(doc);
     if (f[FLAG.KIND] === "note" && f[FLAG.MAP_ID]) existingNotes.set(f.node, doc.id);
   }
-  const notesToCreate = [...wanted]
-    .filter((id) => !existingNotes.has(id) && nodeById.has(id))
-    .map((id) =>
-      buildNoteData(nodeById.get(id), map, map.mapId ?? progress?.mapId ?? "", localizeFn, map.journal?.[id])
-    );
+  const notesToCreate = offsetDocs(
+    [...wanted]
+      .filter((id) => !existingNotes.has(id) && nodeById.has(id))
+      .map((id) =>
+        buildNoteData(nodeById.get(id), map, map.mapId ?? progress?.mapId ?? "", localizeFn, map.journal?.[id])
+      ),
+    origin
+  );
   const notesToDelete = [...existingNotes]
     .filter(([nodeId]) => !wanted.has(nodeId))
     .map(([, docId]) => docId);
