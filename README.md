@@ -151,8 +151,14 @@ símbolos, nomes e numeração dos andares, e o retângulo de fundo.
 
 ### Saída
 
-* **Onde desenhar** — na cena ativa (redimensionada automaticamente se for menor que o
-  mapa) ou em uma cena nova, criada sem grade, com visão global e já enquadrada.
+* **Onde desenhar** — na cena ativa ou em uma cena nova, criada sem grade, com visão global
+  e já enquadrada.
+* **Tamanho da cena** — *Ajustar exatamente ao mapa* (padrão) faz a cena ativa ter as
+  dimensões do mapa, reduzindo **e** aumentando, aplica a **margem da cena** (0,05 contra os
+  0,25 padrão do Foundry) e grava o enquadramento inicial, de forma que a cena abra mostrando
+  o mapa inteiro. Há também *Só aumentar se for menor* e *Não mexer nas dimensões*. Use o
+  ajuste exato em uma cena dedicada ao mapa: reduzir pode deixar o que já existia na cena
+  fora da área visível.
 * **Apagar o mapa anterior** — remove só o que o módulo criou, pela flag `spire-map.mapId`;
   nada mais da cena é tocado.
 * **Travar os desenhos** — evita arrastar os nós por acidente.

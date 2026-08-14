@@ -44,21 +44,21 @@
         <input type="number" name="__lookahead" value="{{lookahead}}" min="0" max="5" step="1">
       </label>
       <span class="spire-footer__spacer"></span>
-      <button type="button" class="spire-btn spire-btn--ghost" data-action="stepBack"
+      <button type="button" class="spire-btn spire-btn--ghost" data-action="spireStepBack"
               data-tooltip="{{localize 'SPIREMAP.reveal.stepBackHint'}}">
         <i class="fa-solid fa-rotate-left"></i> {{localize "SPIREMAP.reveal.stepBack"}}
       </button>
-      <button type="button" class="spire-btn spire-btn--ghost" data-action="revealAll">
+      <button type="button" class="spire-btn spire-btn--ghost" data-action="spireRevealAll">
         <i class="fa-solid fa-eye"></i> {{localize "SPIREMAP.reveal.revealAll"}}
       </button>
-      <button type="button" class="spire-btn spire-btn--ghost" data-action="hideUnvisited">
+      <button type="button" class="spire-btn spire-btn--ghost" data-action="spireHideUnvisited">
         <i class="fa-solid fa-eye-slash"></i> {{localize "SPIREMAP.reveal.hideUnvisited"}}
       </button>
-      <button type="button" class="spire-icon-btn" data-action="resync"
+      <button type="button" class="spire-icon-btn" data-action="spireResync"
               data-tooltip="{{localize 'SPIREMAP.reveal.resync'}}">
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
-      <button type="button" class="spire-icon-btn spire-icon-btn--danger" data-action="reset"
+      <button type="button" class="spire-icon-btn spire-icon-btn--danger" data-action="spireReset"
               data-tooltip="{{localize 'SPIREMAP.reveal.reset'}}">
         <i class="fa-solid fa-trash-arrow-up"></i>
       </button>
@@ -81,7 +81,7 @@
           {{/if}}
           <span class="spire-footer__spacer"></span>
           <span class="spire-zoom-readout">{{zoomPercent}}%</span>
-          <button type="button" class="spire-icon-btn" data-action="fit"
+          <button type="button" class="spire-icon-btn" data-action="spireFit"
                   data-tooltip="{{localize 'SPIREMAP.buttons.fit'}}">
             <i class="fa-solid fa-expand"></i>
           </button>
@@ -98,7 +98,7 @@
         {{#if available.length}}
           <div class="spire-choices">
             {{#each available}}
-              <button type="button" class="spire-choice" data-action="choose" data-node-id="{{id}}">
+              <button type="button" class="spire-choice" data-action="spireChoose" data-node-id="{{id}}">
                 <span class="spire-chip" style="background:{{fill}};color:{{color}}">{{symbol}}</span>
                 <span class="spire-choice__label">
                   <strong>{{label}}</strong>
@@ -124,7 +124,7 @@
             </header>
             <p class="hint">{{localize "SPIREMAP.reveal.state"}}: <strong>{{selected.stateLabel}}</strong></p>
             <div class="spire-toolbar spire-toolbar--wrap">
-              <button type="button" class="spire-btn" data-action="toggle" data-node-id="{{selected.id}}">
+              <button type="button" class="spire-btn" data-action="spireToggle" data-node-id="{{selected.id}}">
                 {{#if selected.revealed}}
                   <i class="fa-solid fa-eye-slash"></i> {{localize "SPIREMAP.reveal.hideNode"}}
                 {{else}}
@@ -132,11 +132,11 @@
                 {{/if}}
               </button>
               {{#if selected.isAvailable}}
-                <button type="button" class="spire-btn spire-btn--primary" data-action="choose" data-node-id="{{selected.id}}">
+                <button type="button" class="spire-btn spire-btn--primary" data-action="spireChoose" data-node-id="{{selected.id}}">
                   <i class="fa-solid fa-shoe-prints"></i> {{localize "SPIREMAP.reveal.choose"}}
                 </button>
               {{else}}
-                <button type="button" class="spire-btn spire-btn--ghost" data-action="forceMove" data-node-id="{{selected.id}}"
+                <button type="button" class="spire-btn spire-btn--ghost" data-action="spireForceMove" data-node-id="{{selected.id}}"
                         data-tooltip="{{localize 'SPIREMAP.reveal.forceHint'}}">
                   <i class="fa-solid fa-shoe-prints"></i> {{localize "SPIREMAP.reveal.force"}}
                 </button>
@@ -156,14 +156,14 @@
                 {{#each nodes}}
                   <button type="button"
                           class="spire-nodechip state-{{state}}"
-                          data-action="select" data-node-id="{{id}}"
+                          data-action="spireSelect" data-node-id="{{id}}"
                           data-tooltip="{{label}} — {{stateLabel}}"
                           style="{{#unless isHidden}}background:{{fill}};color:{{color}}{{/unless}}">
                     {{#if isHidden}}?{{else}}{{symbol}}{{/if}}
                   </button>
                 {{/each}}
               </span>
-              <button type="button" class="spire-icon-btn spire-floorrow__eye" data-action="revealFloor"
+              <button type="button" class="spire-icon-btn spire-floorrow__eye" data-action="spireRevealFloor"
                       data-floor="{{floor}}" data-tooltip="{{localize 'SPIREMAP.reveal.revealFloor'}}"
                       {{#if allRevealed}}disabled{{/if}}>
                 <i class="fa-solid fa-eye"></i>

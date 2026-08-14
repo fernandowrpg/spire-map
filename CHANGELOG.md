@@ -4,6 +4,39 @@ Todas as mudanças relevantes deste módulo. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões usam
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.3.1] — 2026-08-14
+
+### Corrigido
+
+- **Erro ao trocar de aba no painel**: `You must pass both the tab and tab group identifier`.
+  O ApplicationV2 trata `data-action="tab"` internamente (chamando `changeTab(tab, group)`),
+  e o módulo usava exatamente esse nome para as próprias abas — o framework executava a ação
+  dele por cima da nossa e estourava por falta do grupo.
+- Todas as ações do módulo passaram a usar prefixo próprio (`spireTab`, `spireRefresh`,
+  `spirePaint`, …), de modo que não há como colidir com as ações internas do ApplicationV2,
+  nem com as que o Foundry vier a reservar.
+- O mock de teste passou a reproduzir o comportamento do framework para as ações reservadas
+  e a exigir o prefixo — o erro relatado é hoje coberto por teste.
+
+## [1.3.0] — 2026-08-14
+
+### Adicionado
+
+- **Tamanho da cena** (aba Saída): a cena ativa passa a ser ajustada ao tamanho exato do
+  mapa. Três modos — *Ajustar exatamente ao mapa* (padrão, reduz e aumenta), *Só aumentar
+  se for menor* (comportamento até a 1.2.0) e *Não mexer nas dimensões*.
+- **Margem da cena** configurável (padrão 0,05; o padrão do Foundry é 0,25), aplicada junto
+  com o ajuste exato.
+- O **enquadramento inicial** da cena passa a ser gravado, com o centro do mapa e uma escala
+  que mostra o mapa inteiro — a cena abre já enquadrada. A câmera do Mestre também é levada
+  para o mapa logo depois de desenhar.
+- Uma notificação informa as dimensões antes e depois quando a cena é redimensionada.
+
+### Alterado
+
+- A cena nova passou a usar a mesma margem configurável e o mesmo enquadramento do ajuste
+  exato, em vez de valores fixos.
+
 ## [1.2.0] — 2026-08-14
 
 ### Adicionado

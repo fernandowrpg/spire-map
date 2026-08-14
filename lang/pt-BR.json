@@ -224,5 +224,14 @@
   "SPIREMAP.chat.moveTitle": "O grupo avançou",
   "SPIREMAP.chat.moveBody": "Entraram em <strong>{label}</strong> (andar {floor}).",
   "SPIREMAP.notify.revealError": "Erro ao sincronizar a revelação: {error}",
-  "SPIREMAP.keybindings.openTracker": "Abrir o controle de revelação"
+  "SPIREMAP.keybindings.openTracker": "Abrir o controle de revelação",
+  "SPIREMAP.fields.resizeScene": "Tamanho da cena",
+  "SPIREMAP.fields.resizeExact": "Ajustar exatamente ao mapa",
+  "SPIREMAP.fields.resizeGrow": "Só aumentar se for menor",
+  "SPIREMAP.fields.resizeNone": "Não mexer nas dimensões",
+  "SPIREMAP.fields.scenePadding": "Margem da cena",
+  "SPIREMAP.hints.resizeScene": "\"Ajustar exatamente\" reduz e aumenta a cena até ela ter o tamanho do mapa, aplica a margem abaixo e grava o enquadramento inicial. Use em uma cena dedicada ao mapa: reduzir pode deixar o que já existia fora da área visível.",
+  "SPIREMAP.hints.scenePadding": "Espaço em volta do mapa, como fração das dimensões (0,05 = 5%). O padrão do Foundry é 0,25.",
+  "SPIREMAP.notify.resized": "Cena redimensionada de {from} para {to}.",
+  "SPIREMAP.notify.resizeFailed": "Não foi possível redimensionar a cena: {error}"
 }

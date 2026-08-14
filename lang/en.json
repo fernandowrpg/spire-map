@@ -224,5 +224,14 @@
   "SPIREMAP.chat.moveTitle": "The party moved on",
   "SPIREMAP.chat.moveBody": "They entered <strong>{label}</strong> (floor {floor}).",
   "SPIREMAP.notify.revealError": "Failed to synchronize the reveal: {error}",
-  "SPIREMAP.keybindings.openTracker": "Open the reveal tracker"
+  "SPIREMAP.keybindings.openTracker": "Open the reveal tracker",
+  "SPIREMAP.fields.resizeScene": "Scene size",
+  "SPIREMAP.fields.resizeExact": "Fit exactly to the map",
+  "SPIREMAP.fields.resizeGrow": "Only grow if smaller",
+  "SPIREMAP.fields.resizeNone": "Leave the dimensions alone",
+  "SPIREMAP.fields.scenePadding": "Scene padding",
+  "SPIREMAP.hints.resizeScene": "\"Fit exactly\" shrinks and grows the scene until it matches the map, applies the padding below and stores the initial view. Use it on a scene dedicated to the map: shrinking can leave pre-existing content outside the visible area.",
+  "SPIREMAP.hints.scenePadding": "Space around the map, as a fraction of the dimensions (0.05 = 5%). Foundry's default is 0.25.",
+  "SPIREMAP.notify.resized": "Scene resized from {from} to {to}.",
+  "SPIREMAP.notify.resizeFailed": "Could not resize the scene: {error}"
 }

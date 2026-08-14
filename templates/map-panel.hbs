@@ -3,7 +3,7 @@
 
   <nav class="spire-tabs" role="tablist">
     {{#each tabs}}
-      <button type="button" class="spire-tab {{#if active}}active{{/if}}" data-action="tab" data-tab="{{id}}"
+      <button type="button" class="spire-tab {{#if active}}active{{/if}}" data-action="spireTab" data-tab="{{id}}"
               role="tab" aria-selected="{{#if active}}true{{else}}false{{/if}}">
         <i class="{{icon}}"></i><span>{{localize label}}</span>
       </button>
@@ -23,11 +23,11 @@
             <div class="spire-inline">
               <input id="spire-seed" type="text" name="seed" value="{{config.seed}}"
                      placeholder="{{localize 'SPIREMAP.fields.seedPlaceholder'}}">
-              <button type="button" class="spire-icon-btn" data-action="randomSeed"
+              <button type="button" class="spire-icon-btn" data-action="spireRandomSeed"
                       data-tooltip="{{localize 'SPIREMAP.buttons.randomSeed'}}">
                 <i class="fa-solid fa-dice"></i>
               </button>
-              <button type="button" class="spire-icon-btn" data-action="refresh"
+              <button type="button" class="spire-icon-btn" data-action="spireRefresh"
                       data-tooltip="{{localize 'SPIREMAP.buttons.refresh'}}">
                 <i class="fa-solid fa-rotate"></i>
               </button>
@@ -157,10 +157,10 @@
       {{!-- --------------------------- TIPOS DE NÓ -------------------------- --}}
       <div class="spire-panel {{#if tabActive.types}}active{{/if}}" data-panel="types">
         <div class="spire-toolbar">
-          <button type="button" class="spire-btn" data-action="addType">
+          <button type="button" class="spire-btn" data-action="spireAddType">
             <i class="fa-solid fa-plus"></i> {{localize "SPIREMAP.buttons.addType"}}
           </button>
-          <button type="button" class="spire-btn spire-btn--ghost" data-action="resetTypes">
+          <button type="button" class="spire-btn spire-btn--ghost" data-action="spireResetTypes">
             <i class="fa-solid fa-arrow-rotate-left"></i> {{localize "SPIREMAP.buttons.resetTypes"}}
           </button>
           <span class="spire-weight-total">
@@ -181,15 +181,15 @@
                   <span class="spire-badge spire-badge--weight">{{localize "SPIREMAP.fields.weight"}} {{weight}}</span>
                 {{/if}}
                 <span class="spire-type__actions">
-                  <button type="button" class="spire-icon-btn" data-action="moveType" data-index="{{index}}" data-dir="up"
+                  <button type="button" class="spire-icon-btn" data-action="spireMoveType" data-index="{{index}}" data-dir="up"
                           data-tooltip="{{localize 'SPIREMAP.buttons.moveUp'}}" {{#if isFirst}}disabled{{/if}}>
                     <i class="fa-solid fa-chevron-up"></i>
                   </button>
-                  <button type="button" class="spire-icon-btn" data-action="moveType" data-index="{{index}}" data-dir="down"
+                  <button type="button" class="spire-icon-btn" data-action="spireMoveType" data-index="{{index}}" data-dir="down"
                           data-tooltip="{{localize 'SPIREMAP.buttons.moveDown'}}" {{#if isLast}}disabled{{/if}}>
                     <i class="fa-solid fa-chevron-down"></i>
                   </button>
-                  <button type="button" class="spire-icon-btn spire-icon-btn--danger" data-action="removeType"
+                  <button type="button" class="spire-icon-btn spire-icon-btn--danger" data-action="spireRemoveType"
                           data-index="{{index}}" data-tooltip="{{localize 'SPIREMAP.buttons.removeType'}}">
                     <i class="fa-solid fa-trash"></i>
                   </button>
@@ -239,7 +239,7 @@
                   <div class="spire-inline">
                     <input type="text" name="nodeTypes.{{index}}.icon" value="{{icon}}"
                            placeholder="{{localize 'SPIREMAP.fields.iconPlaceholder'}}">
-                    <button type="button" class="spire-icon-btn" data-action="pickIcon" data-index="{{index}}"
+                    <button type="button" class="spire-icon-btn" data-action="spirePickIcon" data-index="{{index}}"
                             data-tooltip="{{localize 'SPIREMAP.buttons.pickIcon'}}">
                       <i class="fa-solid fa-file-image"></i>
                     </button>
@@ -332,7 +332,7 @@
         </div>
 
         <div class="spire-toolbar spire-toolbar--wrap" style="margin-top:12px">
-          <button type="button" class="spire-btn spire-btn--primary" data-action="openTracker">
+          <button type="button" class="spire-btn spire-btn--primary" data-action="spireOpenTracker">
             <i class="fa-solid fa-eye"></i> {{localize "SPIREMAP.buttons.openTracker"}}
           </button>
         </div>
@@ -460,6 +460,21 @@
             <label>{{localize "SPIREMAP.fields.newSceneName"}}</label>
             <input type="text" name="newSceneName" value="{{config.newSceneName}}">
           </div>
+          <div class="spire-field">
+            <label for="spire-resize">{{localize "SPIREMAP.fields.resizeScene"}}</label>
+            <select id="spire-resize" name="resizeScene">
+              {{#each resizeOptions}}
+                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{localize label}}</option>
+              {{/each}}
+            </select>
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label for="spire-scenepadding">{{localize "SPIREMAP.fields.scenePadding"}}</label>
+            <input id="spire-scenepadding" type="number" name="scenePadding"
+                   value="{{config.scenePadding}}" min="0" max="0.5" step="0.05">
+          </div>
+          <p class="hint spire-field--wide">{{localize "SPIREMAP.hints.resizeScene"}}</p>
+          <p class="hint spire-field--wide">{{localize "SPIREMAP.hints.scenePadding"}}</p>
           <label class="spire-check">
             <input type="checkbox" name="clearPrevious" {{#if config.clearPrevious}}checked{{/if}}>
             <span>{{localize "SPIREMAP.fields.clearPrevious"}}</span>
@@ -492,19 +507,19 @@
 
         <h3 class="spire-legend">{{localize "SPIREMAP.groups.presetsIO"}}</h3>
         <div class="spire-toolbar spire-toolbar--wrap">
-          <button type="button" class="spire-btn" data-action="saveDefaults">
+          <button type="button" class="spire-btn" data-action="spireSaveDefaults">
             <i class="fa-solid fa-floppy-disk"></i> {{localize "SPIREMAP.buttons.saveDefaults"}}
           </button>
-          <button type="button" class="spire-btn spire-btn--ghost" data-action="exportSvg">
+          <button type="button" class="spire-btn spire-btn--ghost" data-action="spireExportSvg">
             <i class="fa-solid fa-image"></i> {{localize "SPIREMAP.buttons.exportSvg"}}
           </button>
-          <button type="button" class="spire-btn spire-btn--ghost" data-action="exportJson">
+          <button type="button" class="spire-btn spire-btn--ghost" data-action="spireExportJson">
             <i class="fa-solid fa-file-export"></i> {{localize "SPIREMAP.buttons.exportJson"}}
           </button>
-          <button type="button" class="spire-btn spire-btn--ghost" data-action="importJson">
+          <button type="button" class="spire-btn spire-btn--ghost" data-action="spireImportJson">
             <i class="fa-solid fa-file-import"></i> {{localize "SPIREMAP.buttons.importJson"}}
           </button>
-          <button type="button" class="spire-btn spire-btn--danger" data-action="resetAll">
+          <button type="button" class="spire-btn spire-btn--danger" data-action="spireResetAll">
             <i class="fa-solid fa-triangle-exclamation"></i> {{localize "SPIREMAP.buttons.resetAll"}}
           </button>
         </div>
@@ -523,7 +538,7 @@
           <i class="fa-solid fa-magnifying-glass"></i>
           <input type="range" name="__zoom" min="0.05" max="1.5" step="0.01" value="{{zoom}}">
           <span class="spire-zoom-readout">{{zoomPercent}}%</span>
-          <button type="button" class="spire-icon-btn" data-action="fitPreview"
+          <button type="button" class="spire-icon-btn" data-action="spireFitPreview"
                   data-tooltip="{{localize 'SPIREMAP.buttons.fit'}}">
             <i class="fa-solid fa-expand"></i>
           </button>
@@ -555,7 +570,7 @@
             <strong>{{selectedNode.label}}</strong>
             <span>{{localize "SPIREMAP.preview.floor"}} {{selectedNode.floor}}</span>
             {{#if overrideCount}}
-              <button type="button" class="spire-icon-btn" data-action="clearOverrides"
+              <button type="button" class="spire-icon-btn" data-action="spireClearOverrides"
                       data-tooltip="{{localize 'SPIREMAP.buttons.clearOverrides'}}">
                 <i class="fa-solid fa-eraser"></i> {{overrideCount}}
               </button>
@@ -578,18 +593,18 @@
 
   {{!-- ============================== RODAPÉ ============================== --}}
   <footer class="spire-footer">
-    <button type="button" class="spire-btn" data-action="refresh">
+    <button type="button" class="spire-btn" data-action="spireRefresh">
       <i class="fa-solid fa-rotate"></i> {{localize "SPIREMAP.buttons.refresh"}}
     </button>
-    <button type="button" class="spire-btn" data-action="randomSeed">
+    <button type="button" class="spire-btn" data-action="spireRandomSeed">
       <i class="fa-solid fa-dice"></i> {{localize "SPIREMAP.buttons.randomSeed"}}
     </button>
     <span class="spire-footer__spacer"></span>
     {{#if isGM}}
-      <button type="button" class="spire-btn spire-btn--ghost" data-action="clear">
+      <button type="button" class="spire-btn spire-btn--ghost" data-action="spireClear">
         <i class="fa-solid fa-broom"></i> {{localize "SPIREMAP.buttons.clear"}}
       </button>
-      <button type="button" class="spire-btn spire-btn--primary" data-action="paint">
+      <button type="button" class="spire-btn spire-btn--primary" data-action="spirePaint">
         <i class="fa-solid fa-paintbrush"></i> {{localize "SPIREMAP.buttons.paint"}}
       </button>
     {{else}}

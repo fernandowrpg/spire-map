@@ -160,12 +160,12 @@ async function resolveScene(config, bounds) {
     name,
     width: bounds.width,
     height: bounds.height,
-    padding: 0.05,
+    padding: config.scenePadding,
     backgroundColor: config.backgroundColor,
     grid: { type: enums().gridless, size: 100 },
     tokenVision: false,
     fogExploration: false,
-    initial: { x: Math.round(bounds.width / 2), y: Math.round(bounds.height / 2), scale: 0.3 },
+    initial: frameFor(bounds),
     environment: { globalLight: { enabled: true } },
     flags: { [MODULE_ID]: { generated: true } }
   };
@@ -174,20 +174,85 @@ async function resolveScene(config, bounds) {
     return await Scene.create(data);
   } catch (err) {
     console.warn(`${MODULE_ID} | falha ao criar cena com dados completos, tentando modo simples`, err);
-    return await Scene.create({ name, width: bounds.width, height: bounds.height, padding: 0.05 });
+    return await Scene.create({
+      name,
+      width: bounds.width,
+      height: bounds.height,
+      padding: config.scenePadding
+    });
   }
 }
 
-async function ensureSceneFits(scene, bounds) {
+/**
+ * Enquadramento inicial da cena: centro do mapa e uma escala que mostra o mapa inteiro
+ * numa janela de referência de 1600×900. É o que o Foundry usa ao abrir a cena.
+ */
+function frameFor(bounds) {
+  const scale = Math.min(1600 / bounds.width, 900 / bounds.height);
+  return {
+    x: Math.round(bounds.width / 2),
+    y: Math.round(bounds.height / 2),
+    scale: Math.round(Math.max(0.25, Math.min(3, scale)) * 100) / 100
+  };
+}
+
+/**
+ * Ajusta as dimensões da cena ao mapa, conforme `config.resizeScene`:
+ *
+ *  - `exact` — a cena passa a ter exatamente o tamanho do mapa (reduz **e** aumenta) e
+ *    recebe a margem de `config.scenePadding`;
+ *  - `grow`  — só aumenta, nunca reduz (comportamento até a 1.2.0);
+ *  - `none`  — não mexe nas dimensões.
+ *
+ * Em `exact` e `grow` o enquadramento inicial também é gravado, para a cena abrir
+ * mostrando o mapa inteiro.
+ *
+ * @returns {Promise<{changed: boolean, from: {width:number,height:number}, to: object}>}
+ */
+async function applySceneSize(scene, bounds, config) {
+  const mode = config.resizeScene ?? "exact";
+  const from = { width: scene.width, height: scene.height };
+  if (mode === "none") return { changed: false, from, to: {} };
+
   const updates = {};
-  if (scene.width < bounds.width) updates.width = bounds.width;
-  if (scene.height < bounds.height) updates.height = bounds.height;
-  if (Object.keys(updates).length) {
-    try {
-      await scene.update(updates);
-    } catch (err) {
-      console.warn(`${MODULE_ID} | não foi possível redimensionar a cena`, err);
-    }
+  if (mode === "exact") {
+    if (scene.width !== bounds.width) updates.width = bounds.width;
+    if (scene.height !== bounds.height) updates.height = bounds.height;
+    if (Number(scene.padding) !== Number(config.scenePadding)) updates.padding = config.scenePadding;
+  } else {
+    if (scene.width < bounds.width) updates.width = bounds.width;
+    if (scene.height < bounds.height) updates.height = bounds.height;
+  }
+
+  const frame = frameFor(bounds);
+  const current = scene.initial ?? null;
+  if (current?.x !== frame.x || current?.y !== frame.y || Number(current?.scale) !== frame.scale) {
+    updates.initial = frame;
+  }
+
+  if (!Object.keys(updates).length) return { changed: false, from, to: {} };
+
+  try {
+    await scene.update(updates);
+    return { changed: true, from, to: updates };
+  } catch (err) {
+    console.warn(`${MODULE_ID} | não foi possível redimensionar a cena`, err);
+    ui.notifications?.warn(t("SPIREMAP.notify.resizeFailed", { error: err.message }));
+    return { changed: false, from, to: {}, error: err.message };
+  }
+}
+
+/**
+ * Move a câmera do Mestre para o mapa, quando a cena ajustada é a que está aberta.
+ * Puramente visual e tolerante a falhas.
+ */
+async function panToMap(scene, bounds) {
+  try {
+    if (canvas?.scene?.id !== scene.id || typeof canvas.animatePan !== "function") return;
+    const frame = frameFor(bounds);
+    await canvas.animatePan({ x: frame.x, y: frame.y, scale: frame.scale });
+  } catch (err) {
+    console.debug(`${MODULE_ID} | não foi possível reposicionar a câmera`, err);
   }
 }
 
@@ -654,7 +719,7 @@ export async function paintMap(map, options = {}) {
 
   const scene = await resolveScene(config, map.bounds);
   if (!scene) return null;
-  if (config.target === "active") await ensureSceneFits(scene, map.bounds);
+  const resize = config.target === "active" ? await applySceneSize(scene, map.bounds, config) : null;
 
   if (config.clearPrevious) await clearSceneMap(scene);
 
@@ -725,8 +790,18 @@ export async function paintMap(map, options = {}) {
   ui.notifications?.info(
     t("SPIREMAP.notify.painted", { scene: scene.name, count: created, seed: map.seed })
   );
+  if (resize?.changed && (resize.to.width || resize.to.height)) {
+    ui.notifications?.info(
+      t("SPIREMAP.notify.resized", {
+        from: `${resize.from.width}×${resize.from.height}`,
+        to: `${scene.width}×${scene.height}`
+      })
+    );
+  }
 
-  return { scene, mapId, created, progress };
+  await panToMap(scene, map.bounds);
+
+  return { scene, mapId, created, progress, resize };
 }
 
 /* -------------------------------------------------------------------------- */

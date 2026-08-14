@@ -125,6 +125,8 @@ export function normalizeConfig(partial = {}) {
   if (!["up", "down"].includes(c.orientation)) c.orientation = "up";
   if (!["curved", "straight"].includes(c.edgeStyle)) c.edgeStyle = "curved";
   if (!["active", "new"].includes(c.target)) c.target = "active";
+  if (!["exact", "grow", "none"].includes(c.resizeScene)) c.resizeScene = "exact";
+  c.scenePadding = clamp(toNum(c.scenePadding, 0.05), [0, 0.5]);
 
   c.nodeTypes = normalizeNodeTypes(c.nodeTypes);
 

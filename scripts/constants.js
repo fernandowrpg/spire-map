@@ -217,6 +217,8 @@ export const DEFAULT_CONFIG = {
 
   /* ---------------- Saída ---------------- */
   target: "active",
+  resizeScene: "exact",
+  scenePadding: 0.05,
   newSceneName: "Spire Map — Ato {act}",
   clearPrevious: true,
   lockDrawings: true,

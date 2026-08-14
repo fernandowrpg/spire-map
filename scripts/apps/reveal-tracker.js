@@ -87,17 +87,17 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
     },
     position: { width: 760, height: 720 },
     actions: {
-      choose: SpireRevealTracker.#onChoose,
-      forceMove: SpireRevealTracker.#onForceMove,
-      toggle: SpireRevealTracker.#onToggle,
-      select: SpireRevealTracker.#onSelect,
-      revealFloor: SpireRevealTracker.#onRevealFloor,
-      revealAll: SpireRevealTracker.#onRevealAll,
-      hideUnvisited: SpireRevealTracker.#onHideUnvisited,
-      stepBack: SpireRevealTracker.#onStepBack,
-      reset: SpireRevealTracker.#onReset,
-      resync: SpireRevealTracker.#onResync,
-      fit: SpireRevealTracker.#onFit
+      spireChoose: SpireRevealTracker.#onChoose,
+      spireForceMove: SpireRevealTracker.#onForceMove,
+      spireToggle: SpireRevealTracker.#onToggle,
+      spireSelect: SpireRevealTracker.#onSelect,
+      spireRevealFloor: SpireRevealTracker.#onRevealFloor,
+      spireRevealAll: SpireRevealTracker.#onRevealAll,
+      spireHideUnvisited: SpireRevealTracker.#onHideUnvisited,
+      spireStepBack: SpireRevealTracker.#onStepBack,
+      spireReset: SpireRevealTracker.#onReset,
+      spireResync: SpireRevealTracker.#onResync,
+      spireFit: SpireRevealTracker.#onFit
     }
   };
 

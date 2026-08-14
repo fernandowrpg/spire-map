@@ -2,7 +2,7 @@
   "id": "spire-map",
   "title": "Spire Map — Gerador de Mapas (Slay the Spire)",
   "description": "Gera mapas ramificados no estilo Slay the Spire e os desenha diretamente na cena ativa do Foundry VTT. Os nós nascem secretos e o Mestre os revela conforme a escolha dos jogadores, com um controle de revelação dedicado. Inclui painel de configuração completo com preview ao vivo, regras de geração, seed determinística e editor de tipos de nó customizados.",
-  "version": "1.2.0",
+  "version": "1.3.1",
   "compatibility": {
     "minimum": "13",
     "verified": "14"

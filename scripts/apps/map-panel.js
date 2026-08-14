@@ -80,25 +80,25 @@ export class SpireMapPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       closeOnSubmit: false
     },
     actions: {
-      tab: SpireMapPanel.#onTab,
-      refresh: SpireMapPanel.#onRefresh,
-      randomSeed: SpireMapPanel.#onRandomSeed,
-      paint: SpireMapPanel.#onPaint,
-      clear: SpireMapPanel.#onClear,
-      addType: SpireMapPanel.#onAddType,
-      removeType: SpireMapPanel.#onRemoveType,
-      moveType: SpireMapPanel.#onMoveType,
-      resetTypes: SpireMapPanel.#onResetTypes,
-      pickIcon: SpireMapPanel.#onPickIcon,
-      saveDefaults: SpireMapPanel.#onSaveDefaults,
-      resetAll: SpireMapPanel.#onResetAll,
-      exportSvg: SpireMapPanel.#onExportSvg,
-      exportJson: SpireMapPanel.#onExportJson,
-      importJson: SpireMapPanel.#onImportJson,
-      fitPreview: SpireMapPanel.#onFitPreview,
-      clearOverrides: SpireMapPanel.#onClearOverrides,
-      setNodeType: SpireMapPanel.#onSetNodeType,
-      openTracker: SpireMapPanel.#onOpenTracker
+      spireTab: SpireMapPanel.#onTab,
+      spireRefresh: SpireMapPanel.#onRefresh,
+      spireRandomSeed: SpireMapPanel.#onRandomSeed,
+      spirePaint: SpireMapPanel.#onPaint,
+      spireClear: SpireMapPanel.#onClear,
+      spireAddType: SpireMapPanel.#onAddType,
+      spireRemoveType: SpireMapPanel.#onRemoveType,
+      spireMoveType: SpireMapPanel.#onMoveType,
+      spireResetTypes: SpireMapPanel.#onResetTypes,
+      spirePickIcon: SpireMapPanel.#onPickIcon,
+      spireSaveDefaults: SpireMapPanel.#onSaveDefaults,
+      spireResetAll: SpireMapPanel.#onResetAll,
+      spireExportSvg: SpireMapPanel.#onExportSvg,
+      spireExportJson: SpireMapPanel.#onExportJson,
+      spireImportJson: SpireMapPanel.#onImportJson,
+      spireFitPreview: SpireMapPanel.#onFitPreview,
+      spireClearOverrides: SpireMapPanel.#onClearOverrides,
+      spireSetNodeType: SpireMapPanel.#onSetNodeType,
+      spireOpenTracker: SpireMapPanel.#onOpenTracker
     }
   };
 
@@ -157,6 +157,14 @@ export class SpireMapPanel extends HandlebarsApplicationMixin(ApplicationV2) {
         c.revealMode
       ),
       fogPreview: Boolean(this.fogPreview),
+      resizeOptions: opts(
+        [
+          { value: "exact", label: "SPIREMAP.fields.resizeExact" },
+          { value: "grow", label: "SPIREMAP.fields.resizeGrow" },
+          { value: "none", label: "SPIREMAP.fields.resizeNone" }
+        ],
+        c.resizeScene
+      ),
       targetOptions: opts(
         [
           { value: "active", label: "SPIREMAP.fields.targetActive" },
