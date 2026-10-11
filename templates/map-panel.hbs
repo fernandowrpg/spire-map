@@ -163,6 +163,10 @@
             <label for="spire-secretlen">{{localize "SPIREMAP.fields.secretPathLength"}}</label>
             <input id="spire-secretlen" type="number" name="secretPathLength" value="{{config.secretPathLength}}" min="1" max="6" step="1">
           </div>
+          <div class="spire-field spire-field--tiny">
+            <label for="spire-secretpernode">{{localize "SPIREMAP.fields.secretPathsPerNode"}}</label>
+            <input id="spire-secretpernode" type="number" name="secretPathsPerNode" value="{{config.secretPathsPerNode}}" min="1" max="6" step="1">
+          </div>
           <div class="spire-field">
             <label for="spire-secrettype">{{localize "SPIREMAP.fields.secretPathType"}}</label>
             <select id="spire-secrettype" name="secretPathType">

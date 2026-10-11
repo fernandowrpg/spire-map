@@ -85,7 +85,8 @@ Fluxo normal: ajuste os parâmetros → veja o preview atualizar em tempo real �
   uma ou mais salas novas e voltam ao mapa mais acima. Para os jogadores eles **não existem**
   — nem como `?` — até o grupo escolher o nó-chave; aí o ramal aparece na cena e vira uma
   opção de rota. Você define a quantidade (0 = desligado, o padrão), o máximo de salas por
-  caminho, o tipo das salas secretas (sorteado ou fixo — um Tesouro, por exemplo) e a cor do
+  caminho, o **máximo de caminhos secretos por sala** (quantos podem sair do mesmo nó-chave;
+  padrão 1), o tipo das salas secretas (sorteado ou fixo — um Tesouro, por exemplo) e a cor do
   traçado. No preview e no controle de revelação eles aparecem tracejados nessa cor. São
   gerados à parte, depois do mapa: a mesma seed dá o mesmo mapa com ou sem eles.
 

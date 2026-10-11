@@ -188,6 +188,8 @@ export const DEFAULT_CONFIG = {
   /** 0 = nenhum (padrão): o mapa sai idêntico ao das versões anteriores para a mesma seed. */
   secretPaths: 0,
   secretPathLength: 2,
+  /** Máximo de caminhos secretos que podem sair da mesma sala (nó-chave). */
+  secretPathsPerNode: 1,
   /** "" = sorteia por peso; ou o id de um tipo de nó. */
   secretPathType: "",
   secretPathColor: "#9b7bd6",
@@ -271,6 +273,7 @@ export const LIMITS = {
   columns: [2, 20],
   secretPaths: [0, 12],
   secretPathLength: [1, 6],
+  secretPathsPerNode: [1, 6],
   nodeRadius: [8, 200],
   spacingX: [40, 800],
   spacingY: [40, 800],

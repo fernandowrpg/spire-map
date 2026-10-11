@@ -4,6 +4,14 @@ Todas as mudanças relevantes deste módulo. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões usam
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.4.1] — 2026-10-11
+
+### Adicionado
+
+- **Máximo de caminhos secretos por sala** (aba Regras): quantos caminhos secretos podem sair
+  do mesmo nó-chave. O padrão é 1, que é o comportamento da 1.4.0 — a mesma seed continua
+  gerando os mesmos caminhos. Com um valor maior, escolher a sala libera todos de uma vez.
+
 ## [1.4.0] — 2026-10-11
 
 ### Adicionado

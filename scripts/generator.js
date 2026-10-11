@@ -100,6 +100,7 @@ export function normalizeConfig(partial = {}) {
 
   c.secretPaths = clamp(toInt(c.secretPaths, 0), LIMITS.secretPaths);
   c.secretPathLength = clamp(toInt(c.secretPathLength, 2), LIMITS.secretPathLength);
+  c.secretPathsPerNode = clamp(toInt(c.secretPathsPerNode, 1), LIMITS.secretPathsPerNode);
   c.secretPathColor = normalizeColor(c.secretPathColor, DEFAULT_CONFIG.secretPathColor);
 
   for (const key of [
@@ -619,7 +620,8 @@ function addSecretPaths(lattice, config, seed, totalFloors, warnings) {
     ) ??
     fallbackType(types);
 
-  const usedKeys = new Set();
+  // Quantos caminhos já saem de cada nó-chave (limitado por `secretPathsPerNode`).
+  const usedKeys = new Map();
   let attempts = config.secretPaths * 80;
 
   while (paths.length < config.secretPaths && attempts-- > 0) {
@@ -629,7 +631,11 @@ function addSecretPaths(lattice, config, seed, totalFloors, warnings) {
     const len = rng.int(1, maxLen);
     const keyFloor = rng.int(1, totalFloors - len - 1);
     const keys = [...nodes.values()].filter(
-      (n) => n.floor === keyFloor && !n.secretPath && !n.isBoss && !usedKeys.has(n.id)
+      (n) =>
+        n.floor === keyFloor &&
+        !n.secretPath &&
+        !n.isBoss &&
+        (usedKeys.get(n.id) ?? 0) < config.secretPathsPerNode
     );
     if (!keys.length) continue;
     const key = rng.pick(keys);
@@ -698,7 +704,7 @@ function addSecretPaths(lattice, config, seed, totalFloors, warnings) {
       if (!to.isBoss) track(from.floor, from.col, to.col);
     }
 
-    usedKeys.add(key.id);
+    usedKeys.set(key.id, (usedKeys.get(key.id) ?? 0) + 1);
     paths.push({ id, key: key.id, nodes: chain.slice(1, -1).map((n) => n.id), exit: exit.id });
   }
 
