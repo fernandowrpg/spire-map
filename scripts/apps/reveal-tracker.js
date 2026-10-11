@@ -6,16 +6,20 @@
  * marcar a escolha dos jogadores, revelar/ocultar nós e andares, voltar um passo e
  * reiniciar o progresso.
  *
+ * Também é aqui que o Mestre define o que uma sala "?" revelou ser, libera caminhos secretos
+ * na mão e arrasta o adversário para o nó do boss.
+ *
  * @module spire-map/apps/reveal-tracker
  */
 
-import { MODULE_ID, FLAG, NODE_STATE } from "../constants.js";
+import { MODULE_ID, FLAG, NODE_STATE, SETTINGS } from "../constants.js";
 import { renderSvg } from "../renderer.js";
 import {
   readSceneMap,
   chooseNode,
   setProgress,
-  applyProgressToScene
+  applyProgressToScene,
+  announceResolution
 } from "../scene-painter.js";
 import {
   createProgress,
@@ -28,7 +32,18 @@ import {
   hideUnvisited,
   resetProgress,
   stepBack,
-  applyLookahead
+  applyLookahead,
+  lockedNodes,
+  makeDisplay,
+  isResolvable,
+  isBossNode,
+  setResolution,
+  clearResolution,
+  setSecretPath,
+  setAdversary,
+  clearAdversary,
+  setAdversaryDefeated,
+  adversaryOf
 } from "../progress.js";
 import { smartLocalize } from "../i18n.js";
 
@@ -97,7 +112,14 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
       spireStepBack: SpireRevealTracker.#onStepBack,
       spireReset: SpireRevealTracker.#onReset,
       spireResync: SpireRevealTracker.#onResync,
-      spireFit: SpireRevealTracker.#onFit
+      spireFit: SpireRevealTracker.#onFit,
+      spireResolve: SpireRevealTracker.#onResolve,
+      spireUnresolve: SpireRevealTracker.#onUnresolve,
+      spireToggleSecret: SpireRevealTracker.#onToggleSecret,
+      spireDefeat: SpireRevealTracker.#onDefeat,
+      spireClearAdversary: SpireRevealTracker.#onClearAdversary,
+      spireOpenAdversary: SpireRevealTracker.#onOpenAdversary,
+      spireClearHistory: SpireRevealTracker.#onClearHistory
     }
   };
 
@@ -134,10 +156,19 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
     const progress = data.progress ?? createProgress(map, map.config, data.mapId);
     const states = nodeStates(map, progress);
     const summary = progressSummary(map, progress);
-    const typeById = new Map(map.config.nodeTypes.map((t) => [t.id, t]));
+    const locked = lockedNodes(map, progress);
+    const unlocked = new Set(progress.unlocked ?? []);
+    // O Mestre vê sempre o tipo efetivo (a sala "?" já definida) e o apelido.
+    const show = makeDisplay(map, progress, { gmView: true });
+    const keyOf = new Map();
+    for (const path of map.secretPaths ?? []) {
+      if (!keyOf.has(path.key)) keyOf.set(path.key, []);
+      keyOf.get(path.key).push({ id: path.id, unlocked: unlocked.has(path.id) });
+    }
 
     const describe = (node) => {
-      const type = typeById.get(node.typeId);
+      const display = show(node);
+      const type = display.type;
       const state = states.get(node.id);
       return {
         id: node.id,
@@ -145,6 +176,13 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
         col: node.col + 1,
         typeId: node.typeId,
         label: smartLocalize(type?.label ?? node.typeId),
+        alias: display.alias,
+        description: display.description,
+        isResolved: display.resolved,
+        baseLabel: smartLocalize(display.baseType?.label ?? node.typeId),
+        secretPath: node.secretPath ?? null,
+        isLocked: locked.has(node.id),
+        secretKeys: keyOf.get(node.id) ?? [],
         symbol: type?.symbol ?? "?",
         fill: type?.fill ?? "#555555",
         color: type?.color ?? "#ffffff",
@@ -182,6 +220,26 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
       ? map.nodes.find((n) => n.id === this.selectedNodeId)
       : null;
 
+    // Detalhes que só o nó selecionado precisa: formulário da sala "?", caminho secreto, boss.
+    let selectedInfo = null;
+    if (selected) {
+      const display = show(selected);
+      const resolvable = isResolvable(map, selected);
+      const chosenType = display.resolution?.typeId ?? selected.typeId;
+      selectedInfo = {
+        ...describe(selected),
+        resolvable,
+        resolution: display.resolution,
+        typeOptions: map.config.nodeTypes.map((t) => ({
+          value: t.id,
+          label: smartLocalize(t.label),
+          selected: t.id === chosenType
+        })),
+        isBossNode: isBossNode(map, selected),
+        adversary: adversaryOf(progress, selected.id)
+      };
+    }
+
     this._map = map;
     this._progress = progress;
 
@@ -194,7 +252,14 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
       currentLabel: current ? describe(current) : null,
       available,
       floors,
-      selected: selected ? describe(selected) : null,
+      selected: selectedInfo,
+      secretPathCount: (map.secretPaths ?? []).length,
+      secretPathsOpen: unlocked.size,
+      history: SpireRevealTracker.#history().map((entry, index) => ({
+        ...entry,
+        index,
+        when: entry.defeatedAt ? new Date(entry.defeatedAt).toLocaleDateString() : ""
+      })),
       modeOptions: [
         { value: "onChoice", label: "SPIREMAP.fields.revealModeOnChoice", selected: progress.mode === "onChoice" },
         { value: "manual", label: "SPIREMAP.fields.revealModeManual", selected: progress.mode === "manual" }
@@ -256,6 +321,90 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
         this._didFit = true;
         requestAnimationFrame(() => SpireRevealTracker.#onFit.call(this));
       }
+
+      // Soltar um ator direto em cima de um nó de boss no minimapa.
+      this.#bindDrop(stage, (event) => event.target.closest?.("[data-node-id]")?.dataset.nodeId);
+    }
+
+    // Área de soltar do nó selecionado.
+    for (const zone of root.querySelectorAll(".spire-dropzone")) {
+      this.#bindDrop(zone, () => zone.dataset.nodeId);
+    }
+  }
+
+  /**
+   * Liga arrastar-e-soltar de atores em um elemento.
+   * @param {HTMLElement} el
+   * @param {(event: DragEvent) => string|undefined} resolveNodeId
+   */
+  #bindDrop(el, resolveNodeId) {
+    el.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      el.classList.add("is-dragover");
+    });
+    el.addEventListener("dragleave", () => el.classList.remove("is-dragover"));
+    el.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      el.classList.remove("is-dragover");
+      const nodeId = resolveNodeId(event);
+      if (nodeId) await this.#dropAdversary(event, nodeId);
+    });
+  }
+
+  /** Vincula ao nó o ator solto (barra lateral, compêndio ou token). */
+  async #dropAdversary(event, nodeId) {
+    const state = this.#fresh();
+    const node = state?.map.nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    if (!isBossNode(state.map, node)) {
+      ui.notifications.warn(game.i18n.localize("SPIREMAP.boss.notBossNode"));
+      return;
+    }
+
+    let data = null;
+    try {
+      const editor = foundry.applications?.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
+      data = editor?.getDragEventData?.(event) ?? JSON.parse(event.dataTransfer.getData("text/plain"));
+    } catch (err) {
+      data = null;
+    }
+    if (!data?.uuid || !["Actor", "Token"].includes(data.type)) {
+      ui.notifications.warn(game.i18n.localize("SPIREMAP.boss.dropInvalid"));
+      return;
+    }
+
+    let doc = null;
+    try {
+      doc = await fromUuid(data.uuid);
+    } catch (err) {
+      doc = null;
+    }
+    // Um token solto vale pelo ator que ele representa.
+    const actor = doc?.actor ?? doc;
+    if (!actor?.name) {
+      ui.notifications.warn(game.i18n.localize("SPIREMAP.boss.dropInvalid"));
+      return;
+    }
+
+    await setProgress(
+      this.scene,
+      setAdversary(state.map, state.progress, nodeId, {
+        uuid: actor.uuid ?? data.uuid,
+        name: doc?.name ?? actor.name,
+        img: actor.img ?? doc?.texture?.src ?? ""
+      })
+    );
+    this.selectedNodeId = nodeId;
+    this.render();
+  }
+
+  /** Histórico de adversários derrotados (setting do mundo). */
+  static #history() {
+    try {
+      const list = game.settings.get(MODULE_ID, SETTINGS.BOSS_HISTORY);
+      return Array.isArray(list) ? list : [];
+    } catch (err) {
+      return [];
     }
   }
 
@@ -308,12 +457,137 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
       ui.notifications.warn(key ? game.i18n.localize(key) : String(result.error));
       return;
     }
-    this.selectedNodeId = null;
+    // Sala "?" ainda sem definição, ou boss: o nó fica selecionado, com o formulário à mão.
+    const state = this.#fresh();
+    const node = state?.map.nodes.find((n) => n.id === nodeId);
+    const pending =
+      node &&
+      ((isResolvable(state.map, node) &&
+        !(state.progress.resolved ?? []).some((r) => r.id === nodeId)) ||
+        isBossNode(state.map, node));
+    this.selectedNodeId = pending ? nodeId : null;
+
+    if (result.unlockedNow?.length) {
+      ui.notifications.info(
+        game.i18n.format("SPIREMAP.secretPath.unlocked", { count: result.unlockedNow.length })
+      );
+    }
     if (result.revealedNow?.length) {
       ui.notifications.info(
         game.i18n.format("SPIREMAP.reveal.revealedCount", { count: result.revealedNow.length })
       );
     }
+    this.render();
+  }
+
+  /* ----------------------- sala "?" com tipo definido ---------------------- */
+
+  static async #onResolve(event, target) {
+    const nodeId = target.dataset.nodeId ?? this.selectedNodeId;
+    const state = this.#fresh();
+    if (!nodeId || !state) return;
+    const box = target.closest(".spire-resolve");
+    const result = setResolution(state.map, state.progress, nodeId, {
+      typeId: box?.querySelector('[name="__resType"]')?.value,
+      alias: box?.querySelector('[name="__resAlias"]')?.value,
+      description: box?.querySelector('[name="__resDesc"]')?.value
+    });
+    if (result.error) {
+      ui.notifications.warn(game.i18n.localize("SPIREMAP.resolve.invalidType"));
+      return;
+    }
+    await setProgress(this.scene, result.progress);
+    // Só anuncia o que os jogadores já podem ver: a sala precisa ter sido escolhida.
+    if (state.map.config.announceReveal && (result.progress.visited ?? []).includes(nodeId)) {
+      await announceResolution(state.map, result.progress, nodeId);
+    }
+    this.render();
+  }
+
+  static async #onUnresolve(event, target) {
+    const nodeId = target.dataset.nodeId ?? this.selectedNodeId;
+    const state = this.#fresh();
+    if (!nodeId || !state) return;
+    await setProgress(this.scene, clearResolution(state.map, state.progress, nodeId));
+    this.render();
+  }
+
+  /* --------------------------- caminhos secretos --------------------------- */
+
+  static async #onToggleSecret(event, target) {
+    const pathId = Number(target.dataset.pathId);
+    const state = this.#fresh();
+    if (!pathId || !state) return;
+    await setProgress(this.scene, setSecretPath(state.map, state.progress, pathId));
+    this.render();
+  }
+
+  /* --------------------------- adversário do boss -------------------------- */
+
+  static async #onDefeat(event, target) {
+    const nodeId = target.dataset.nodeId ?? this.selectedNodeId;
+    const state = this.#fresh();
+    const adversary = state ? adversaryOf(state.progress, nodeId) : null;
+    if (!adversary) return;
+    const defeated = !adversary.defeated;
+    const at = Date.now();
+    await setProgress(this.scene, setAdversaryDefeated(state.map, state.progress, nodeId, defeated, at));
+
+    // O histórico vive em um setting do mundo: continua lá depois de regenerar o mapa.
+    const node = state.map.nodes.find((n) => n.id === nodeId);
+    const key = `${state.map.mapId}:${nodeId}`;
+    const history = SpireRevealTracker.#history().filter((h) => h.key !== key);
+    if (defeated) {
+      history.push({
+        key,
+        uuid: adversary.uuid,
+        name: adversary.name,
+        img: adversary.img,
+        scene: this.scene?.name ?? "",
+        act: state.map.config.act,
+        floor: node?.floor ?? null,
+        seed: state.map.seed,
+        defeatedAt: at
+      });
+    }
+    await game.settings.set(MODULE_ID, SETTINGS.BOSS_HISTORY, history);
+    this.render();
+  }
+
+  static async #onClearAdversary(event, target) {
+    const nodeId = target.dataset.nodeId ?? this.selectedNodeId;
+    const state = this.#fresh();
+    if (!nodeId || !state) return;
+    await setProgress(this.scene, clearAdversary(state.map, state.progress, nodeId));
+    this.render();
+  }
+
+  static async #onOpenAdversary(event, target) {
+    const uuid = target.dataset.uuid;
+    if (!uuid) return;
+    try {
+      const doc = await fromUuid(uuid);
+      if (doc?.sheet) doc.sheet.render(true);
+      else ui.notifications.warn(game.i18n.localize("SPIREMAP.boss.missingActor"));
+    } catch (err) {
+      ui.notifications.warn(game.i18n.localize("SPIREMAP.boss.missingActor"));
+    }
+  }
+
+  static async #onClearHistory(event, target) {
+    const index = target.dataset.index;
+    const history = SpireRevealTracker.#history();
+    if (index !== undefined) {
+      history.splice(Number(index), 1);
+      await game.settings.set(MODULE_ID, SETTINGS.BOSS_HISTORY, history);
+      return this.render();
+    }
+    const confirmed = await DialogV2.confirm({
+      window: { title: game.i18n.localize("SPIREMAP.boss.clearHistory") },
+      content: `<p>${game.i18n.localize("SPIREMAP.boss.confirmClearHistory")}</p>`
+    });
+    if (!confirmed) return;
+    await game.settings.set(MODULE_ID, SETTINGS.BOSS_HISTORY, []);
     this.render();
   }
 

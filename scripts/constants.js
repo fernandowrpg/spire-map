@@ -10,7 +10,9 @@ export const SETTINGS = {
   DEFAULT_CONFIG: "defaultConfig",
   PRESETS: "presets",
   SHOW_SCENE_BUTTON: "showSceneButton",
-  AUTO_PREVIEW: "autoPreview"
+  AUTO_PREVIEW: "autoPreview",
+  /** Histórico de adversários derrotados nos nós de boss (sobrevive a regenerar o mapa). */
+  BOSS_HISTORY: "bossHistory"
 };
 
 /** Flag namespace usado em todos os documentos criados pelo módulo. */
@@ -50,6 +52,8 @@ export const NODE_STATE = {
  * @property {number}  maxTotal    0 = ilimitado.
  * @property {boolean} noRepeatOnPath Impede dois nós consecutivos do mesmo tipo em um caminho.
  * @property {boolean} reserved    Tipos reservados (tesouro/descanso/boss) não entram no sorteio.
+ * @property {boolean} resolvable  Sala "?": o Mestre define o tipo real quando ela é escolhida.
+ *                                 Ausente em configurações antigas — vale `true` só para o id "event".
  */
 
 /** @type {NodeType[]} */
@@ -80,7 +84,8 @@ export const DEFAULT_NODE_TYPES = [
     maxPerFloor: 0,
     maxTotal: 0,
     noRepeatOnPath: false,
-    reserved: false
+    reserved: false,
+    resolvable: true
   },
   {
     id: "elite",
@@ -179,6 +184,14 @@ export const DEFAULT_CONFIG = {
   distinctStarts: true,
   forceReachableExit: true,
 
+  /* ---------------- Caminhos secretos ---------------- */
+  /** 0 = nenhum (padrão): o mapa sai idêntico ao das versões anteriores para a mesma seed. */
+  secretPaths: 0,
+  secretPathLength: 2,
+  /** "" = sorteia por peso; ou o id de um tipo de nó. */
+  secretPathType: "",
+  secretPathColor: "#9b7bd6",
+
   /* ---------------- Aparência ---------------- */
   orientation: "up",
   nodeRadius: 46,
@@ -256,6 +269,8 @@ export const LIMITS = {
   floors: [2, 40],
   paths: [1, 20],
   columns: [2, 20],
+  secretPaths: [0, 12],
+  secretPathLength: [1, 6],
   nodeRadius: [8, 200],
   spacingX: [40, 800],
   spacingY: [40, 800],

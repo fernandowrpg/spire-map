@@ -27,6 +27,15 @@ export function registerSettings() {
     default: {}
   });
 
+  /* Histórico de adversários derrotados nos nós de boss (mostrado no controle de revelação). */
+  game.settings.register(MODULE_ID, SETTINGS.BOSS_HISTORY, {
+    name: "Boss history",
+    scope: "world",
+    config: false,
+    type: Array,
+    default: []
+  });
+
   game.settings.register(MODULE_ID, SETTINGS.SHOW_SCENE_BUTTON, {
     name: "SPIREMAP.settings.showSceneButton.name",
     hint: "SPIREMAP.settings.showSceneButton.hint",

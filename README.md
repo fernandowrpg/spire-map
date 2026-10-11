@@ -81,6 +81,13 @@ Fluxo normal: ajuste os parâmetros → veja o preview atualizar em tempo real �
 * **Garantir entrada e saída** — remove becos sem saída e nós órfãos depois da geração,
   garantindo que todo nó pertença a uma rota completa até o boss.
 * **Nó com um único pai não repete o tipo do pai** — evita duas salas idênticas seguidas.
+* **Caminhos secretos** — ramais extras que saem de um nó comum (a **chave**), passam por
+  uma ou mais salas novas e voltam ao mapa mais acima. Para os jogadores eles **não existem**
+  — nem como `?` — até o grupo escolher o nó-chave; aí o ramal aparece na cena e vira uma
+  opção de rota. Você define a quantidade (0 = desligado, o padrão), o máximo de salas por
+  caminho, o tipo das salas secretas (sorteado ou fixo — um Tesouro, por exemplo) e a cor do
+  traçado. No preview e no controle de revelação eles aparecem tracejados nessa cor. São
+  gerados à parte, depois do mapa: a mesma seed dá o mesmo mapa com ou sem eles.
 
 ### Tipos de Nó
 
@@ -99,6 +106,7 @@ são editáveis. Você pode criar quantos tipos quiser, cada um com:
 | Não repetir em sequência | proíbe dois nós iguais seguidos no mesmo caminho |
 | Reservado | tipo fora do sorteio, usado só nos andares fixos (Tesouro, Boss) |
 | Ícone | qualquer imagem da sua pasta de dados; substitui o símbolo (criada como *Tile*) |
+| Sala "?" | o tipo real é definido pelo Mestre quando a sala é escolhida (ligado no Evento) |
 
 ### Segredo
 
@@ -204,6 +212,20 @@ Abre pelo botão do olho na barra de ferramentas, por `Alt + R`, ou junto com o 
   dada não se tira sem querer); para retirar de verdade, use **Ocultar não visitados**.
 * **Revelar tudo**, **Ocultar não visitados**, **Reiniciar progresso** e **reaplicar o estado
   na cena** (útil se alguém mexeu nos desenhos na mão).
+* **Sala "?"** — ao escolher um Evento (ou qualquer tipo marcado como *Sala "?"*), o nó fica
+  selecionado com o formulário **O que esta sala é?**: role fora do Foundry e registre o
+  **tipo** (um dos tipos do módulo), um **apelido** e uma **descrição**. A sala passa a
+  aparecer na cena com a cor, o símbolo e o ícone do tipo escolhido e com o apelido embaixo;
+  com *Anunciar no chat* ligado, a descrição vai para o chat. Dá para preparar com
+  antecedência: os jogadores só veem depois que o grupo entra na sala. **Desfazer** devolve o `?`.
+* **Caminhos secretos** — o cabeçalho mostra quantos já foram liberados. Eles se abrem
+  sozinhos quando o grupo escolhe o nó-chave; selecionando a chave ou uma sala do ramal você
+  também pode **liberar** ou **trancar de novo** na mão.
+* **Adversário do boss** — selecione o nó do boss e **arraste um ator** (da barra lateral ou
+  de um compêndio) para a área tracejada, ou direto para o nó no minimapa. O nome aparece
+  sob o nó quando o grupo chega lá. **Marcar como derrotado** registra o adversário em
+  **Adversários derrotados**, um histórico do mundo (nome, imagem, cena, ato e data) que
+  continua existindo depois que o mapa é regenerado ou a ficha é apagada.
 
 O estado vive na flag `spire-map.progress` da cena, então sobrevive a recarregar o mundo,
 aparece igual para todos os clientes e continua de onde parou na sessão seguinte. Se você
@@ -323,6 +345,20 @@ Estrutura de um mapa gerado:
 }
 ```
 
+Salas "?", caminhos secretos e histórico de boss:
+
+```js
+// Definir o que uma sala "?" revelou ser (null desfaz)
+await SpireMap.resolveNode("f4c2", { typeId: "shop", alias: "Mercador Errante", description: "Vende poções." });
+
+// Caminhos secretos do mapa desenhado: [{ id, key, nodes, exit }]
+SpireMap.read().map.secretPaths;
+await SpireMap.setSecretPath(1, true);   // true libera, false tranca, omitido alterna
+
+// Adversários derrotados nos nós de boss
+SpireMap.bossHistory();
+```
+
 Cada *Drawing* de nó guarda os dados do nó em
 `flags["spire-map"].node` — `{ id, floor, col, typeId, label, isBoss, parents, children }` —
 o que permite escrever macros que reagem ao mapa desenhado.
@@ -399,6 +435,8 @@ spire-map/
   **Ícone** com uma imagem.
 * Mapas grandes (mais de ~500 nós) criam muitos documentos na cena; é tudo criado em lote,
   mas dê alguns segundos ao Foundry.
+* Mapas e configurações de versões anteriores continuam funcionando sem conversão: um mapa
+  já desenhado não tem caminhos secretos, e o Evento dele já aceita a definição de sala "?".
 * Testado em Foundry VTT v13 e v14 (14.365).
 
 ## Licença

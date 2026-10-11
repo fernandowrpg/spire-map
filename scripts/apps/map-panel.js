@@ -135,6 +135,10 @@ export class SpireMapPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       presets: Object.entries(BUILTIN_PRESETS).map(([id, p]) => ({ id, label: p.label })),
       typeOptions: opts(typeValues, c.firstFloorType),
       bossTypeOptions: opts(typeValues, c.bossType),
+      secretTypeOptions: opts(
+        [{ value: "", label: game.i18n.localize("SPIREMAP.fields.secretPathTypeRandom") }, ...typeValues],
+        c.secretPathType
+      ),
       orientationOptions: opts(
         [
           { value: "up", label: "SPIREMAP.fields.orientationUp" },
@@ -527,7 +531,8 @@ export class SpireMapPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       maxPerFloor: 0,
       maxTotal: 0,
       noRepeatOnPath: false,
-      reserved: false
+      reserved: false,
+      resolvable: false
     };
     this.config.nodeTypes.push(base);
     this.config = normalizeConfig(this.config);

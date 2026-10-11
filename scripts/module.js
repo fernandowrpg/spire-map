@@ -16,7 +16,8 @@ import {
   chooseNode,
   setProgress,
   readSceneMap,
-  applyProgressToScene
+  applyProgressToScene,
+  announceResolution
 } from "./scene-painter.js";
 import * as ProgressLib from "./progress.js";
 import { SpireMapPanel } from "./apps/map-panel.js";
@@ -132,6 +133,39 @@ Hooks.once("init", async () => {
       if (!data) return { ok: false, error: "noMap" };
       const progress = data.progress ?? ProgressLib.createProgress(data.map, data.map.config, data.mapId);
       return setProgress(scene, ProgressLib.resetProgress(data.map, progress, data.map.config));
+    },
+
+    /**
+     * Define o que uma sala "?" revelou ser.
+     * @param {string} nodeId
+     * @param {{typeId:string, alias?:string, description?:string}|null} data `null` desfaz
+     */
+    async resolveNode(nodeId, data, scene = canvas?.scene ?? game.scenes?.active) {
+      const found = readSceneMap(scene);
+      if (!found) return { ok: false, error: "noMap" };
+      const progress = found.progress ?? ProgressLib.createProgress(found.map, found.map.config, found.mapId);
+      if (!data) return setProgress(scene, ProgressLib.clearResolution(found.map, progress, nodeId));
+      const result = ProgressLib.setResolution(found.map, progress, nodeId, data);
+      if (result.error) return { ok: false, error: result.error };
+      const saved = await setProgress(scene, result.progress);
+      if (found.map.config.announceReveal && (result.progress.visited ?? []).includes(nodeId)) {
+        await announceResolution(found.map, result.progress, nodeId);
+      }
+      return saved;
+    },
+
+    /** Libera (`true`), tranca (`false`) ou alterna (omitido) um caminho secreto. */
+    async setSecretPath(pathId, state, scene = canvas?.scene ?? game.scenes?.active) {
+      const found = readSceneMap(scene);
+      if (!found) return { ok: false, error: "noMap" };
+      const progress = found.progress ?? ProgressLib.createProgress(found.map, found.map.config, found.mapId);
+      return setProgress(scene, ProgressLib.setSecretPath(found.map, progress, pathId, state));
+    },
+
+    /** Histórico de adversários derrotados nos nós de boss. */
+    bossHistory: () => {
+      const list = game.settings.get(MODULE_ID, SETTINGS.BOSS_HISTORY);
+      return Array.isArray(list) ? [...list] : [];
     },
 
     /** Reaplica o estado atual aos documentos da cena. */

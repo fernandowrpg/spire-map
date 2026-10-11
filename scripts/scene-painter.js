@@ -5,7 +5,7 @@
  *  - arestas   -> Drawing (polígono aberto, sem preenchimento)
  *  - nós       -> Drawing (elipse com preenchimento + símbolo como texto)
  *  - ícones    -> Tile (opcional, quando o tipo de nó define uma imagem)
- *  - rótulos   -> Drawing de texto (opcional)
+ *  - rótulos   -> Drawing de texto (opcional; sempre criado para um nó com apelido)
  *  - marcador  -> Drawing de anel na posição atual do grupo (opcional)
  *  - notas     -> Note (opcional, com JournalEntry por nó, opcional)
  *
@@ -15,6 +15,9 @@
  * de mapa, que não têm campo de visibilidade no schema do Foundry, só existem enquanto o
  * nó está revelado (criadas ao revelar, removidas ao ocultar).
  *
+ * Caminhos secretos: nós, arestas, rótulos e ícones de um caminho trancado ficam `hidden`
+ * (o Foundry os mostra esmaecidos só para o Mestre) até o caminho ser liberado.
+ *
  * Todos os documentos criados recebem a flag `spire-map.mapId`, o que permite
  * limpar/regenerar o mapa sem tocar no resto da cena.
  *
@@ -23,7 +26,14 @@
 
 import { MODULE_ID, FLAG } from "./constants.js";
 import { edgePoints } from "./generator.js";
-import { createProgress, applyLookahead, advanceTo, toFog } from "./progress.js";
+import {
+  createProgress,
+  applyLookahead,
+  advanceTo,
+  toFog,
+  lockedNodes,
+  makeDisplay
+} from "./progress.js";
 
 /**
  * Códigos de forma e enums lidos do próprio Foundry em tempo de execução, com os valores
@@ -90,10 +100,11 @@ function sameColor(docValue, hex) {
  * @param {import("./generator.js").MapNode} node
  * @param {object} config
  * @param {boolean} revealed
+ * @param {object} [shownType] tipo efetivo (sala "?" já definida); padrão: o tipo do próprio nó
  * @returns {{fillColor:string,strokeColor:string,text:string,textColor:string,fontSize:number}}
  */
-export function nodeAppearance(node, config, revealed) {
-  const type = config.nodeTypes.find((ty) => ty.id === node.typeId);
+export function nodeAppearance(node, config, revealed, shownType = null) {
+  const type = shownType ?? config.nodeTypes.find((ty) => ty.id === node.typeId);
   const secret = config.secretNodes && !revealed;
   const fill = secret ? config.maskFill : (type?.fill ?? "#555555");
   const stroke = secret ? config.maskColor : (type?.color ?? "#ffffff");
@@ -342,21 +353,23 @@ function buildEdgeDrawings(map, mapId, authorId, revealed) {
         points: pts.flatMap((p) => [Math.round(p.x - minX), Math.round(p.y - minY)])
       },
       strokeWidth: config.edgeWidth,
-      strokeColor: config.edgeColor,
+      strokeColor: edge.secret ? (config.secretPathColor ?? config.edgeColor) : config.edgeColor,
       strokeAlpha: config.edgeAlpha,
       fillType: enums().fill.NONE,
       fillAlpha: 0,
       bezierFactor: 0,
       elevation: 0,
       sort: 0,
-      hidden: edgeHidden(config, revealed, edge),
+      // Um caminho secreto nasce trancado: invisível para os jogadores.
+      hidden: Boolean(edge.secret) || edgeHidden(config, revealed, edge),
       locked: config.lockDrawings,
       interface: false,
       flags: flags(mapId, {
         [FLAG.KIND]: "edge",
         edge: `${edge.from}>${edge.to}`,
         from: edge.from,
-        to: edge.to
+        to: edge.to,
+        ...(edge.secret ? { secret: edge.secret } : {})
       })
     });
   }
@@ -399,7 +412,7 @@ function buildNodeDrawings(map, mapId, authorId, localize, revealed) {
       textAlpha: 1,
       elevation: 0,
       sort: 10,
-      hidden: false,
+      hidden: Boolean(node.secretPath),
       locked: config.lockDrawings,
       interface: false,
       flags: flags(mapId, {
@@ -412,41 +425,55 @@ function buildNodeDrawings(map, mapId, authorId, localize, revealed) {
           label: localize(type.label),
           isBoss: node.isBoss,
           parents: node.parents,
-          children: node.children
+          children: node.children,
+          ...(node.secretPath ? { secretPath: node.secretPath } : {})
         }
       })
     });
 
     if (config.showLabels) {
-      const labelWidth = Math.round(config.spacingX * 0.9);
-      out.push({
-        author: authorId,
-        x: Math.round(node.x - labelWidth / 2),
-        y: Math.round(node.y + diameter / 2 + 2),
-        shape: {
-          type: enums().shape.RECTANGLE,
-          width: labelWidth,
-          height: Math.round(config.fontSize * 0.9)
-        },
-        fillType: enums().fill.NONE,
-        fillAlpha: 0,
-        strokeWidth: 0,
-        strokeAlpha: 0,
-        text: localize(type.label),
-        fontFamily: config.fontFamily,
-        fontSize: Math.max(8, Math.round(config.fontSize * 0.52)),
-        textColor: type.color,
-        textAlpha: 0.95,
-        elevation: 0,
-        sort: 12,
-        hidden: config.secretNodes && !isRevealed,
-        locked: config.lockDrawings,
-        interface: false,
-        flags: flags(mapId, { [FLAG.KIND]: "label", node: node.id })
-      });
+      out.push(
+        buildLabelData(node, map, mapId, authorId, {
+          text: localize(type.label),
+          color: type.color,
+          hidden: Boolean(node.secretPath) || (config.secretNodes && !isRevealed)
+        })
+      );
     }
   }
   return out;
+}
+
+/** Rótulo de texto embaixo de um nó (nome do tipo, ou o apelido definido pelo Mestre). */
+function buildLabelData(node, map, mapId, authorId, look) {
+  const config = map.config;
+  const diameter = Math.round(config.nodeRadius * (node.isBoss ? 1.45 : 1));
+  const labelWidth = Math.round(config.spacingX * 0.9);
+  return {
+    author: authorId,
+    x: Math.round(node.x - labelWidth / 2),
+    y: Math.round(node.y + diameter / 2 + 2),
+    shape: {
+      type: enums().shape.RECTANGLE,
+      width: labelWidth,
+      height: Math.round(config.fontSize * 0.9)
+    },
+    fillType: enums().fill.NONE,
+    fillAlpha: 0,
+    strokeWidth: 0,
+    strokeAlpha: 0,
+    text: look.text,
+    fontFamily: config.fontFamily,
+    fontSize: Math.max(8, Math.round(config.fontSize * 0.52)),
+    textColor: look.color,
+    textAlpha: 0.95,
+    elevation: 0,
+    sort: 12,
+    hidden: Boolean(look.hidden),
+    locked: config.lockDrawings,
+    interface: false,
+    flags: flags(mapId, { [FLAG.KIND]: "label", node: node.id })
+  };
 }
 
 /** Anel que marca onde o grupo está. */
@@ -584,21 +611,28 @@ function buildIconTiles(map, mapId, revealed) {
   for (const node of map.nodes) {
     const type = typeById.get(node.typeId);
     if (!type?.icon) continue;
-    const size = Math.round(config.nodeRadius * (node.isBoss ? 1.45 : 1) * 0.78);
-    out.push({
-      texture: { src: type.icon },
-      x: Math.round(node.x - size / 2),
-      y: Math.round(node.y - size / 2),
-      width: size,
-      height: size,
-      elevation: 1,
-      sort: 30,
-      hidden: config.secretNodes && !revealed.has(node.id),
-      locked: config.lockDrawings,
-      flags: flags(mapId, { [FLAG.KIND]: "icon", node: node.id })
-    });
+    const hidden = Boolean(node.secretPath) || (config.secretNodes && !revealed.has(node.id));
+    out.push(buildIconTile(node, map, mapId, type.icon, hidden));
   }
   return out;
+}
+
+/** Tile com o ícone de um nó. */
+function buildIconTile(node, map, mapId, src, hidden) {
+  const config = map.config;
+  const size = Math.round(config.nodeRadius * (node.isBoss ? 1.45 : 1) * 0.78);
+  return {
+    texture: { src },
+    x: Math.round(node.x - size / 2),
+    y: Math.round(node.y - size / 2),
+    width: size,
+    height: size,
+    elevation: 1,
+    sort: 30,
+    hidden: Boolean(hidden),
+    locked: config.lockDrawings,
+    flags: flags(mapId, { [FLAG.KIND]: "icon", node: node.id })
+  };
 }
 
 /**
@@ -663,10 +697,10 @@ async function createJournalEntries(map, mapId, localize) {
  * removida se o nó voltar a ficar oculto. É o que garante que o nome da sala não apareça
  * no canvas antes da hora.
  */
-function buildNoteData(node, map, mapId, localize, entryId) {
+function buildNoteData(node, map, mapId, localize, entryId, display = null) {
   const config = map.config;
-  const type = config.nodeTypes.find((ty) => ty.id === node.typeId);
-  const label = localize(type?.label ?? node.typeId);
+  const type = display?.type ?? config.nodeTypes.find((ty) => ty.id === node.typeId);
+  const label = display?.alias || localize(type?.label ?? node.typeId);
   return {
     entryId: entryId ?? null,
     x: Math.round(node.x),
@@ -682,12 +716,13 @@ function buildNoteData(node, map, mapId, localize, entryId) {
   };
 }
 
-/** Quais nós devem ter nota agora. */
-function notesWanted(map, revealed) {
+/** Quais nós devem ter nota agora (nós de caminhos secretos trancados nunca têm). */
+function notesWanted(map, revealed, locked) {
   const config = map.config;
   if (!config.createNotes) return new Set();
-  if (!config.secretNodes) return new Set(map.nodes.map((n) => n.id));
-  return new Set(map.nodes.filter((n) => revealed.has(n.id)).map((n) => n.id));
+  const open = map.nodes.filter((n) => !locked.has(n.id));
+  if (!config.secretNodes) return new Set(open.map((n) => n.id));
+  return new Set(open.filter((n) => revealed.has(n.id)).map((n) => n.id));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -705,6 +740,7 @@ export function trimMap(map, mapId, journal = {}, origin = { x: 0, y: 0 }) {
     bounds: map.bounds,
     config: map.config,
     edges: map.edges,
+    secretPaths: map.secretPaths ?? [],
     nodes: map.nodes.map((n) => ({
       id: n.id,
       floor: n.floor,
@@ -714,7 +750,8 @@ export function trimMap(map, mapId, journal = {}, origin = { x: 0, y: 0 }) {
       y: n.y,
       parents: n.parents,
       children: n.children,
-      isBoss: n.isBoss
+      isBoss: n.isBoss,
+      ...(n.secretPath ? { secretPath: n.secretPath } : {})
     }))
   };
 }
@@ -740,6 +777,8 @@ export function inflateMap(stored) {
     nodes: stored.nodes,
     byFloor,
     edges: stored.edges ?? [],
+    // Mapas desenhados antes da 1.4.0 não têm caminhos secretos.
+    secretPaths: stored.secretPaths ?? [],
     bounds: stored.bounds,
     counts,
     warnings: []
@@ -812,7 +851,7 @@ export async function paintMap(map, options = {}) {
       created += made.length;
     }
     if (config.createJournal) journalByNode = await createJournalEntries(map, mapId, localize);
-    const wanted = notesWanted(map, revealed);
+    const wanted = notesWanted(map, revealed, lockedNodes(map, progress));
     const notes = offsetDocs(
       map.nodes
         .filter((n) => wanted.has(n.id))
@@ -892,9 +931,26 @@ export async function applyProgressToScene(scene, map, progress, options = {}) {
   const nodeById = new Map(map.nodes.map((n) => [n.id, n]));
   // A mesma origem usada ao pintar, para o marcador e as notas novas caírem no lugar.
   const origin = map.origin ?? sceneOrigin(scene, map.bounds);
+  const mapId = map.mapId ?? progress?.mapId ?? "";
+  // Caminhos secretos trancados e o tipo efetivo de cada nó, como os jogadores veem.
+  const locked = lockedNodes(map, progress);
+  const lockedPaths = new Set(
+    (map.secretPaths ?? []).map((p) => p.id).filter((id) => !(progress?.unlocked ?? []).includes(id))
+  );
+  const show = makeDisplay(map, progress);
+  const isRevealed = (id) => !config.secretNodes || revealed.has(id);
 
   const drawingUpdates = [];
+  const drawingDeletes = [];
   const tileUpdates = [];
+  const tileDeletes = [];
+  /** Agrupa documentos por nó (pode haver mais de um se dois mapas dividem a cena). */
+  const group = (index, key, doc) => {
+    if (!index.has(key)) index.set(key, []);
+    index.get(key).push(doc);
+  };
+  /** @type {Map<string, any[]>} nó -> rótulos existentes */
+  const labelDocs = new Map();
 
   for (const doc of scene.getEmbeddedCollection("Drawing")) {
     const f = moduleFlags(doc);
@@ -904,22 +960,26 @@ export async function applyProgressToScene(scene, map, progress, options = {}) {
       case "node": {
         const node = nodeById.get(f[FLAG.NODE]?.id);
         if (!node) break;
-        const look = nodeAppearance(node, config, revealed.has(node.id));
+        const look = nodeAppearance(node, config, revealed.has(node.id), show(node).type);
+        const hidden = locked.has(node.id);
         const change = {};
         if (!sameColor(doc.fillColor, look.fillColor)) change.fillColor = look.fillColor;
         if (!sameColor(doc.strokeColor, look.strokeColor)) change.strokeColor = look.strokeColor;
         if ((doc.text ?? "") !== look.text) change.text = look.text;
         if (!sameColor(doc.textColor, look.textColor)) change.textColor = look.textColor;
+        if (Boolean(doc.hidden) !== hidden) change.hidden = hidden;
         if (Object.keys(change).length) drawingUpdates.push({ _id: doc.id, ...change });
         break;
       }
       case "label": {
-        const hidden = config.secretNodes && !revealed.has(f.node);
-        if (doc.hidden !== hidden) drawingUpdates.push({ _id: doc.id, hidden });
+        // Resolvido mais abaixo, junto com os rótulos que ainda precisam ser criados.
+        group(labelDocs, f.node, doc);
         break;
       }
       case "edge": {
-        const hidden = edgeHidden(config, revealed, { from: f.from, to: f.to });
+        const hidden =
+          (Boolean(f.secret) && lockedPaths.has(f.secret)) ||
+          edgeHidden(config, revealed, { from: f.from, to: f.to });
         if (doc.hidden !== hidden) drawingUpdates.push({ _id: doc.id, hidden });
         break;
       }
@@ -955,37 +1015,110 @@ export async function applyProgressToScene(scene, map, progress, options = {}) {
     }
   }
 
+  /* Rótulos: existem para todo nó quando "mostrar rótulos" está ligado e, mesmo com a opção
+     desligada, para o nó que ganhou um apelido (sala "?" definida, adversário do boss). */
+  const labelCreates = [];
+  for (const node of map.nodes) {
+    const display = show(node);
+    const docs = labelDocs.get(node.id) ?? [];
+    if (!config.showLabels && !display.alias) {
+      for (const doc of docs) drawingDeletes.push(doc.id);
+      continue;
+    }
+    const look = {
+      text: display.alias || localizeFn(display.type?.label ?? node.typeId),
+      color: display.type?.color ?? "#ffffff",
+      hidden: locked.has(node.id) || !isRevealed(node.id)
+    };
+    if (!docs.length) {
+      labelCreates.push(buildLabelData(node, map, mapId, game.user?.id, look));
+      continue;
+    }
+    for (const doc of docs) {
+      const change = {};
+      if ((doc.text ?? "") !== look.text) change.text = look.text;
+      if (!sameColor(doc.textColor, look.color)) change.textColor = look.color;
+      if (Boolean(doc.hidden) !== look.hidden) change.hidden = look.hidden;
+      if (Object.keys(change).length) drawingUpdates.push({ _id: doc.id, ...change });
+    }
+  }
+  offsetDocs(labelCreates, origin);
+
+  /* Ícones: seguem o tipo efetivo do nó. Uma sala "?" definida como um tipo com ícone ganha o
+     Tile; se a definição for desfeita, ele é removido. */
+  const iconDocs = new Map();
   for (const doc of scene.getEmbeddedCollection("Tile")) {
     const f = moduleFlags(doc);
-    if (f[FLAG.KIND] !== "icon") continue;
-    const hidden = config.secretNodes && !revealed.has(f.node);
-    if (doc.hidden !== hidden) tileUpdates.push({ _id: doc.id, hidden });
+    if (f[FLAG.KIND] === "icon") group(iconDocs, f.node, doc);
   }
+  const tileCreates = [];
+  for (const node of map.nodes) {
+    const src = show(node).type?.icon || "";
+    const docs = iconDocs.get(node.id) ?? [];
+    const hidden = locked.has(node.id) || !isRevealed(node.id);
+    if (!src) {
+      for (const doc of docs) tileDeletes.push(doc.id);
+      continue;
+    }
+    if (!docs.length) {
+      tileCreates.push(buildIconTile(node, map, mapId, src, hidden));
+      continue;
+    }
+    for (const doc of docs) {
+      const change = {};
+      if (doc.texture?.src !== src) change.texture = { src };
+      if (Boolean(doc.hidden) !== hidden) change.hidden = hidden;
+      if (Object.keys(change).length) tileUpdates.push({ _id: doc.id, ...change });
+    }
+  }
+  offsetDocs(tileCreates, origin);
 
   /* Notas: como o documento Note não tem campo de visibilidade, a nota de um nó oculto
      não existe — é criada ao revelar e removida ao ocultar. */
-  const wanted = notesWanted(map, revealed);
+  const wanted = notesWanted(map, revealed, locked);
   const existingNotes = new Map();
   for (const doc of scene.getEmbeddedCollection("Note")) {
     const f = moduleFlags(doc);
-    if (f[FLAG.KIND] === "note" && f[FLAG.MAP_ID]) existingNotes.set(f.node, doc.id);
+    if (f[FLAG.KIND] === "note" && f[FLAG.MAP_ID]) existingNotes.set(f.node, doc);
   }
+  const noteFor = (id) =>
+    buildNoteData(nodeById.get(id), map, mapId, localizeFn, map.journal?.[id], show(nodeById.get(id)));
   const notesToCreate = offsetDocs(
-    [...wanted]
-      .filter((id) => !existingNotes.has(id) && nodeById.has(id))
-      .map((id) =>
-        buildNoteData(nodeById.get(id), map, map.mapId ?? progress?.mapId ?? "", localizeFn, map.journal?.[id])
-      ),
+    [...wanted].filter((id) => !existingNotes.has(id) && nodeById.has(id)).map(noteFor),
     origin
   );
   const notesToDelete = [...existingNotes]
     .filter(([nodeId]) => !wanted.has(nodeId))
-    .map(([, docId]) => docId);
+    .map(([, doc]) => doc.id);
+  // Só o texto acompanha a definição de uma sala "?"; o ícone da nota é o que foi criado.
+  const noteUpdates = [];
+  for (const [nodeId, doc] of existingNotes) {
+    if (!wanted.has(nodeId) || !nodeById.has(nodeId)) continue;
+    const display = show(nodeById.get(nodeId));
+    if (!display.resolved && !display.alias) continue;
+    const text = noteFor(nodeId).text;
+    if ((doc.text ?? "") !== text) noteUpdates.push({ _id: doc.id, text });
+  }
 
-  let touched = drawingUpdates.length + tileUpdates.length;
+  let touched =
+    drawingUpdates.length + drawingDeletes.length + tileUpdates.length + tileDeletes.length;
   try {
     if (drawingUpdates.length) await scene.updateEmbeddedDocuments("Drawing", drawingUpdates);
+    if (drawingDeletes.length) await scene.deleteEmbeddedDocuments("Drawing", drawingDeletes);
+    if (labelCreates.length) {
+      await scene.createEmbeddedDocuments("Drawing", labelCreates);
+      touched += labelCreates.length;
+    }
     if (tileUpdates.length) await scene.updateEmbeddedDocuments("Tile", tileUpdates);
+    if (tileDeletes.length) await scene.deleteEmbeddedDocuments("Tile", tileDeletes);
+    if (tileCreates.length) {
+      await scene.createEmbeddedDocuments("Tile", tileCreates);
+      touched += tileCreates.length;
+    }
+    if (noteUpdates.length) {
+      await scene.updateEmbeddedDocuments("Note", noteUpdates);
+      touched += noteUpdates.length;
+    }
     if (notesToDelete.length) {
       await scene.deleteEmbeddedDocuments("Note", notesToDelete);
       touched += notesToDelete.length;
@@ -1024,17 +1157,61 @@ export async function chooseNode(scene, nodeId, options = {}) {
   await applyProgressToScene(scene, map, result.progress);
 
   const node = map.nodes.find((n) => n.id === nodeId);
-  const type = map.config.nodeTypes.find((ty) => ty.id === node?.typeId);
   if (map.config.announceReveal && node) {
-    const label = game.i18n?.has?.(type?.label) ? game.i18n.localize(type.label) : (type?.label ?? node.typeId);
+    const display = makeDisplay(map, result.progress)(node);
     await ChatMessage.create({
       content:
         `<div class="spire-map-chat"><h3>${t("SPIREMAP.chat.moveTitle")}</h3>` +
-        `<p>${t("SPIREMAP.chat.moveBody", { label, floor: node.floor })}</p></div>`
+        `<p>${t("SPIREMAP.chat.moveBody", { label: escapeHtml(displayLabel(display, node)), floor: node.floor })}</p>` +
+        (display.description ? `<p>${escapeHtml(display.description)}</p>` : "") +
+        (result.unlockedNow.length ? `<p><em>${t("SPIREMAP.chat.secretFound")}</em></p>` : "") +
+        `</div>`
     });
   }
 
-  return { ok: true, revealedNow: result.revealedNow, progress: result.progress };
+  return {
+    ok: true,
+    revealedNow: result.revealedNow,
+    unlockedNow: result.unlockedNow,
+    progress: result.progress
+  };
+}
+
+/** Nome de exibição de um nó: o apelido, se houver, seguido do tipo efetivo. */
+function displayLabel(display, node) {
+  const typeLabel = display.type?.label ?? node.typeId;
+  const label = game.i18n?.has?.(typeLabel) ? game.i18n.localize(typeLabel) : typeLabel;
+  return display.alias ? `${display.alias} (${label})` : label;
+}
+
+/** Apelido e descrição são texto livre do Mestre: nunca entram como HTML no chat. */
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/\n/g, "<br>");
+}
+
+/**
+ * Anuncia no chat o que uma sala "?" revelou ser (tipo, apelido e descrição).
+ * @param {import("./generator.js").SpireMap} map
+ * @param {object} progress
+ * @param {string} nodeId
+ */
+export async function announceResolution(map, progress, nodeId) {
+  const node = map.nodes.find((n) => n.id === nodeId);
+  if (!node) return;
+  const display = makeDisplay(map, progress, { gmView: true })(node);
+  if (!display.resolved) return;
+  await ChatMessage.create({
+    content:
+      `<div class="spire-map-chat"><h3>${t("SPIREMAP.chat.resolveTitle")}</h3>` +
+      `<p>${t("SPIREMAP.chat.resolveBody", { label: escapeHtml(displayLabel(display, node)), floor: node.floor })}</p>` +
+      (display.description ? `<p>${escapeHtml(display.description)}</p>` : "") +
+      `</div>`
+  });
 }
 
 /**

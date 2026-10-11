@@ -152,6 +152,31 @@
           </label>
           <p class="hint">{{localize "SPIREMAP.hints.noSameTypeAsSoleParent"}}</p>
         </div>
+
+        <h3 class="spire-legend">{{localize "SPIREMAP.groups.secretPaths"}}</h3>
+        <div class="spire-group">
+          <div class="spire-field spire-field--tiny">
+            <label for="spire-secretpaths">{{localize "SPIREMAP.fields.secretPaths"}}</label>
+            <input id="spire-secretpaths" type="number" name="secretPaths" value="{{config.secretPaths}}" min="0" max="12" step="1">
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label for="spire-secretlen">{{localize "SPIREMAP.fields.secretPathLength"}}</label>
+            <input id="spire-secretlen" type="number" name="secretPathLength" value="{{config.secretPathLength}}" min="1" max="6" step="1">
+          </div>
+          <div class="spire-field">
+            <label for="spire-secrettype">{{localize "SPIREMAP.fields.secretPathType"}}</label>
+            <select id="spire-secrettype" name="secretPathType">
+              {{#each secretTypeOptions}}
+                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+              {{/each}}
+            </select>
+          </div>
+          <div class="spire-field spire-field--tiny">
+            <label for="spire-secretcolor">{{localize "SPIREMAP.fields.secretPathColor"}}</label>
+            <input id="spire-secretcolor" type="color" name="secretPathColor" value="{{config.secretPathColor}}">
+          </div>
+        </div>
+        <p class="hint">{{localize "SPIREMAP.hints.secretPaths"}}</p>
       </div>
 
       {{!-- --------------------------- TIPOS DE NÓ -------------------------- --}}
@@ -252,6 +277,10 @@
                 <label class="spire-check">
                   <input type="checkbox" name="nodeTypes.{{index}}.reserved" {{#if reserved}}checked{{/if}}>
                   <span>{{localize "SPIREMAP.fields.reserved"}}</span>
+                </label>
+                <label class="spire-check" data-tooltip="{{localize 'SPIREMAP.hints.resolvable'}}">
+                  <input type="checkbox" name="nodeTypes.{{index}}.resolvable" {{#if resolvable}}checked{{/if}}>
+                  <span>{{localize "SPIREMAP.fields.resolvable"}}</span>
                 </label>
               </div>
             </details>

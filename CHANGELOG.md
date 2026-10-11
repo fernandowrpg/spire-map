@@ -4,6 +4,39 @@ Todas as mudanças relevantes deste módulo. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões usam
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.4.0] — 2026-10-11
+
+### Adicionado
+
+- **Sala "?" com tipo definido na hora.** Ao escolher um Evento, o controle de revelação abre
+  o formulário *O que esta sala é?*: o Mestre rola fora do Foundry e registra o tipo (um dos
+  tipos do módulo), um apelido e uma descrição. A sala passa a ser desenhada na cena com a
+  aparência do tipo escolhido e o apelido embaixo; a descrição vai para o chat quando o
+  anúncio está ligado. Pode ser preparado antes — os jogadores só veem depois que o grupo
+  entra na sala — e desfeito. Qualquer tipo pode fazer esse papel pela nova opção
+  *Sala "?"* no editor de tipos (ligada no Evento).
+- **Caminhos secretos** (aba Regras): ramais que saem de um nó-chave e voltam ao mapa mais
+  acima. Nós e arestas do ramal ficam invisíveis para os jogadores até o grupo escolher o
+  nó-chave. Quantidade, tamanho máximo, tipo das salas e cor do traçado são configuráveis; o
+  controle de revelação mostra quantos foram liberados e permite liberar/trancar na mão.
+- **Adversário do boss.** Arraste um ator para o nó do boss no controle de revelação. Ao
+  marcar como derrotado, ele entra no histórico *Adversários derrotados*, guardado no mundo
+  (nome, imagem, cena, ato, andar, seed e data) — sobrevive a regenerar o mapa.
+- API: `SpireMap.resolveNode()`, `SpireMap.setSecretPath()`, `SpireMap.bossHistory()`, e
+  `map.secretPaths` no mapa gerado.
+
+### Compatibilidade
+
+- Nada muda para quem não usa os recursos novos: com *Caminhos secretos* em 0 (o padrão), a
+  mesma seed gera exatamente o mesmo mapa da 1.3.2, e a cena é desenhada e atualizada com os
+  mesmos documentos. Conferido rodando a mesma sequência de ações no código da 1.3.2 e no
+  novo e comparando o estado da cena a cada passo.
+- Mapas já desenhados e configurações salvas continuam valendo sem conversão. Os dados novos
+  (`unlocked`, `resolved`, `adversaries` no progresso; `secretPaths` no mapa; `resolvable` nos
+  tipos) são opcionais — na falta deles o Evento padrão é a sala "?" e não há caminho secreto.
+- `progress.availableFrom()` e `progress.expandForward()` ganharam um último parâmetro
+  opcional (o progresso); as chamadas antigas se comportam como antes.
+
 ## [1.3.2] — 2026-08-14
 
 ### Corrigido

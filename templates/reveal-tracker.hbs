@@ -21,6 +21,11 @@
       <span class="spire-reveal__count">
         {{summary.revealed}}/{{summary.total}} ({{summary.percent}}%)
       </span>
+      {{#if secretPathCount}}
+        <span class="spire-badge spire-badge--secret" data-tooltip="{{localize 'SPIREMAP.secretPath.countHint'}}">
+          <i class="fa-solid fa-key"></i> {{secretPathsOpen}}/{{secretPathCount}}
+        </span>
+      {{/if}}
     </header>
 
     {{#unless secret}}
@@ -73,7 +78,7 @@
               <i class="fa-solid fa-location-dot"></i>
               {{localize "SPIREMAP.reveal.hereAt"}}
               <span class="spire-chip" style="background:{{currentLabel.fill}};color:{{currentLabel.color}}">{{currentLabel.symbol}}</span>
-              <strong>{{currentLabel.label}}</strong>
+              <strong>{{#if currentLabel.alias}}{{currentLabel.alias}} — {{/if}}{{currentLabel.label}}</strong>
               <span class="hint">{{localize "SPIREMAP.preview.floor"}} {{currentLabel.floor}}</span>
             </span>
           {{else}}
@@ -101,9 +106,10 @@
               <button type="button" class="spire-choice" data-action="spireChoose" data-node-id="{{id}}">
                 <span class="spire-chip" style="background:{{fill}};color:{{color}}">{{symbol}}</span>
                 <span class="spire-choice__label">
-                  <strong>{{label}}</strong>
+                  <strong>{{#if alias}}{{alias}} — {{/if}}{{label}}</strong>
                   <span class="hint">{{localize "SPIREMAP.preview.floor"}} {{floor}} · {{localize "SPIREMAP.journal.column"}} {{col}}</span>
                 </span>
+                {{#if secretPath}}<i class="fa-solid fa-key" data-tooltip="{{localize 'SPIREMAP.secretPath.node'}}"></i>{{/if}}
                 {{#unless revealed}}<i class="fa-solid fa-lock" data-tooltip="{{localize 'SPIREMAP.reveal.stateHidden'}}"></i>{{/unless}}
                 <i class="fa-solid fa-chevron-right"></i>
               </button>
@@ -122,6 +128,7 @@
               <strong>{{selected.label}}</strong>
               <span class="hint">{{localize "SPIREMAP.preview.floor"}} {{selected.floor}}</span>
             </header>
+            {{#if selected.alias}}<p class="spire-selected__alias">{{selected.alias}}</p>{{/if}}
             <p class="hint">{{localize "SPIREMAP.reveal.state"}}: <strong>{{selected.stateLabel}}</strong></p>
             <div class="spire-toolbar spire-toolbar--wrap">
               <button type="button" class="spire-btn" data-action="spireToggle" data-node-id="{{selected.id}}">
@@ -142,7 +149,147 @@
                 </button>
               {{/if}}
             </div>
+
+            {{!-- Caminho secreto: o nó faz parte de um, ou é a chave de um --}}
+            {{#if selected.secretPath}}
+              <div class="spire-box spire-box--secret">
+                <p>
+                  <i class="fa-solid fa-key"></i>
+                  {{localize "SPIREMAP.secretPath.node"}} #{{selected.secretPath}} —
+                  <strong>{{#if selected.isLocked}}{{localize "SPIREMAP.secretPath.locked"}}{{else}}{{localize "SPIREMAP.secretPath.open"}}{{/if}}</strong>
+                </p>
+                <button type="button" class="spire-btn spire-btn--ghost" data-action="spireToggleSecret"
+                        data-path-id="{{selected.secretPath}}">
+                  {{#if selected.isLocked}}
+                    <i class="fa-solid fa-lock-open"></i> {{localize "SPIREMAP.secretPath.unlock"}}
+                  {{else}}
+                    <i class="fa-solid fa-lock"></i> {{localize "SPIREMAP.secretPath.lock"}}
+                  {{/if}}
+                </button>
+              </div>
+            {{/if}}
+            {{#each selected.secretKeys}}
+              <div class="spire-box spire-box--secret">
+                <p>
+                  <i class="fa-solid fa-key"></i>
+                  {{localize "SPIREMAP.secretPath.keyOf"}} #{{id}} —
+                  <strong>{{#if unlocked}}{{localize "SPIREMAP.secretPath.open"}}{{else}}{{localize "SPIREMAP.secretPath.locked"}}{{/if}}</strong>
+                </p>
+                <button type="button" class="spire-btn spire-btn--ghost" data-action="spireToggleSecret" data-path-id="{{id}}">
+                  {{#if unlocked}}
+                    <i class="fa-solid fa-lock"></i> {{localize "SPIREMAP.secretPath.lock"}}
+                  {{else}}
+                    <i class="fa-solid fa-lock-open"></i> {{localize "SPIREMAP.secretPath.unlock"}}
+                  {{/if}}
+                </button>
+              </div>
+            {{/each}}
+
+            {{!-- Sala "?": o tipo é rolado fora do Foundry e definido aqui --}}
+            {{#if selected.resolvable}}
+              <div class="spire-box spire-resolve">
+                <p>
+                  <i class="fa-solid fa-circle-question"></i>
+                  <strong>{{localize "SPIREMAP.resolve.title"}}</strong>
+                  {{#if selected.isResolved}}<span class="spire-badge">{{localize "SPIREMAP.resolve.defined"}}</span>{{/if}}
+                </p>
+                <label class="spire-field">
+                  <span>{{localize "SPIREMAP.resolve.type"}}</span>
+                  <select name="__resType">
+                    {{#each selected.typeOptions}}
+                      <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                    {{/each}}
+                  </select>
+                </label>
+                <label class="spire-field">
+                  <span>{{localize "SPIREMAP.resolve.alias"}}</span>
+                  <input type="text" name="__resAlias" maxlength="80" value="{{selected.resolution.alias}}"
+                         placeholder="{{localize 'SPIREMAP.resolve.aliasPlaceholder'}}">
+                </label>
+                <label class="spire-field">
+                  <span>{{localize "SPIREMAP.resolve.description"}}</span>
+                  <textarea name="__resDesc" rows="3" maxlength="4000">{{selected.resolution.description}}</textarea>
+                </label>
+                <div class="spire-toolbar spire-toolbar--wrap">
+                  <button type="button" class="spire-btn spire-btn--primary" data-action="spireResolve" data-node-id="{{selected.id}}">
+                    <i class="fa-solid fa-check"></i> {{localize "SPIREMAP.resolve.apply"}}
+                  </button>
+                  {{#if selected.resolution}}
+                    <button type="button" class="spire-btn spire-btn--ghost" data-action="spireUnresolve" data-node-id="{{selected.id}}">
+                      <i class="fa-solid fa-rotate-left"></i> {{localize "SPIREMAP.resolve.clear"}}
+                    </button>
+                  {{/if}}
+                </div>
+                <p class="hint">{{localize "SPIREMAP.resolve.hint"}}</p>
+              </div>
+            {{/if}}
+
+            {{!-- Boss: arraste o adversário para cá --}}
+            {{#if selected.isBossNode}}
+              <div class="spire-box spire-dropzone" data-node-id="{{selected.id}}">
+                {{#if selected.adversary}}
+                  <div class="spire-adversary {{#if selected.adversary.defeated}}is-defeated{{/if}}">
+                    {{#if selected.adversary.img}}<img src="{{selected.adversary.img}}" alt="">{{/if}}
+                    <span class="spire-adversary__name">
+                      <strong>{{selected.adversary.name}}</strong>
+                      <span class="hint">
+                        {{#if selected.adversary.defeated}}{{localize "SPIREMAP.boss.defeated"}}{{else}}{{localize "SPIREMAP.boss.adversary"}}{{/if}}
+                      </span>
+                    </span>
+                    {{#if selected.adversary.uuid}}
+                      <button type="button" class="spire-icon-btn" data-action="spireOpenAdversary"
+                              data-uuid="{{selected.adversary.uuid}}" data-tooltip="{{localize 'SPIREMAP.boss.openSheet'}}">
+                        <i class="fa-solid fa-id-card"></i>
+                      </button>
+                    {{/if}}
+                    <button type="button" class="spire-icon-btn spire-icon-btn--danger" data-action="spireClearAdversary"
+                            data-node-id="{{selected.id}}" data-tooltip="{{localize 'SPIREMAP.boss.remove'}}">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                  <button type="button" class="spire-btn {{#unless selected.adversary.defeated}}spire-btn--primary{{/unless}}"
+                          data-action="spireDefeat" data-node-id="{{selected.id}}">
+                    {{#if selected.adversary.defeated}}
+                      <i class="fa-solid fa-rotate-left"></i> {{localize "SPIREMAP.boss.undoDefeat"}}
+                    {{else}}
+                      <i class="fa-solid fa-skull"></i> {{localize "SPIREMAP.boss.markDefeated"}}
+                    {{/if}}
+                  </button>
+                {{else}}
+                  <p class="spire-dropzone__empty">
+                    <i class="fa-solid fa-dragon"></i> {{localize "SPIREMAP.boss.dropHere"}}
+                  </p>
+                {{/if}}
+                <p class="hint">{{localize "SPIREMAP.boss.hint"}}</p>
+              </div>
+            {{/if}}
           </div>
+        {{/if}}
+
+        {{#if history.length}}
+          <details class="spire-history">
+            <summary>
+              <i class="fa-solid fa-skull"></i> {{localize "SPIREMAP.boss.history"}} ({{history.length}})
+            </summary>
+            <ul>
+              {{#each history}}
+                <li>
+                  {{#if img}}<img src="{{img}}" alt="">{{/if}}
+                  <span class="spire-history__text">
+                    <strong>{{name}}</strong>
+                    <span class="hint">{{scene}} · {{localize "SPIREMAP.fields.act"}} {{act}}{{#if when}} · {{when}}{{/if}}</span>
+                  </span>
+                  <button type="button" class="spire-icon-btn" data-action="spireClearHistory" data-index="{{index}}"
+                          data-tooltip="{{localize 'SPIREMAP.boss.removeEntry'}}">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </li>
+              {{/each}}
+            </ul>
+            <button type="button" class="spire-btn spire-btn--ghost" data-action="spireClearHistory">
+              <i class="fa-solid fa-trash"></i> {{localize "SPIREMAP.boss.clearHistory"}}
+            </button>
+          </details>
         {{/if}}
 
         <h3 class="spire-legend">{{localize "SPIREMAP.reveal.floors"}}</h3>
@@ -155,9 +302,9 @@
               <span class="spire-floorrow__nodes">
                 {{#each nodes}}
                   <button type="button"
-                          class="spire-nodechip state-{{state}}"
+                          class="spire-nodechip state-{{state}}{{#if secretPath}} is-secretpath{{/if}}{{#if isLocked}} is-locked{{/if}}"
                           data-action="spireSelect" data-node-id="{{id}}"
-                          data-tooltip="{{label}} — {{stateLabel}}"
+                          data-tooltip="{{#if alias}}{{alias}} — {{/if}}{{label}} — {{stateLabel}}"
                           style="{{#unless isHidden}}background:{{fill}};color:{{color}}{{/unless}}">
                     {{#if isHidden}}?{{else}}{{symbol}}{{/if}}
                   </button>

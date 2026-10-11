@@ -92,6 +92,11 @@ export function renderSvg(map, options = {}) {
 
   /* --------------------------------- arestas ---------------------------------- */
   const isRevealed = (id) => !fog || fog.revealed.has(id);
+  // Caminhos secretos: trancados não existem para os jogadores; o Mestre (e o preview sem
+  // nevoeiro) os vê na cor própria, tracejados.
+  const lockedIds = fog?.locked ?? new Set();
+  const playerView = Boolean(fog) && !fog.gmView;
+  const secretColor = config.secretPathColor ?? config.edgeColor;
   const edgeVisible = (a, b) =>
     !fog || !config.hideEdgesUntilRevealed || (isRevealed(a) && isRevealed(b));
 
@@ -100,12 +105,14 @@ export function renderSvg(map, options = {}) {
     const from = index.get(edge.from);
     const to = index.get(edge.to);
     if (!from || !to) continue;
-    const known = edgeVisible(edge.from, edge.to);
+    const edgeLocked = Boolean(edge.secret) && (lockedIds.has(edge.from) || lockedIds.has(edge.to));
+    if (edgeLocked && playerView) continue;
+    const known = edgeVisible(edge.from, edge.to) && !edgeLocked;
     if (!known && !fog?.gmView) continue;
     const d = toPathData(edgePoints(from, to, config));
-    const alpha = known ? config.edgeAlpha : config.edgeAlpha * 0.25;
+    const alpha = known ? config.edgeAlpha : config.edgeAlpha * (edgeLocked ? 0.55 : 0.25);
     parts.push(
-      `<path d="${d}" stroke="${escapeXml(config.edgeColor)}" stroke-width="${config.edgeWidth}" ` +
+      `<path d="${d}" stroke="${escapeXml(edge.secret ? secretColor : config.edgeColor)}" stroke-width="${config.edgeWidth}" ` +
         `stroke-opacity="${alpha}" stroke-dasharray="${(config.edgeWidth * 2.2).toFixed(1)} ${(config.edgeWidth * 1.5).toFixed(1)}"/>`
     );
   }
@@ -114,7 +121,10 @@ export function renderSvg(map, options = {}) {
   /* ----------------------------------- nós ------------------------------------ */
   parts.push('<g class="spire-nodes">');
   for (const node of map.nodes) {
-    const realType = typeById.get(node.typeId) ?? {
+    const nodeLocked = lockedIds.has(node.id);
+    if (nodeLocked && playerView) continue;
+    const display = fog?.display?.(node) ?? null;
+    const realType = display?.type ?? typeById.get(node.typeId) ?? {
       fill: "#555",
       color: "#fff",
       symbol: "?",
@@ -136,13 +146,16 @@ export function renderSvg(map, options = {}) {
     const opacity = secret && fog.gmView ? 0.42 : 1;
 
     const radius = node.isBoss ? r * 1.45 : r;
-    const label = localize(known || !fog ? realType.label : maskType.label);
+    const typeLabel = localize(known || !fog ? realType.label : maskType.label);
+    const alias = (known || fog?.gmView) && display?.alias ? display.alias : "";
+    const label = alias ? `${alias} (${typeLabel})` : typeLabel;
     const isHot = highlightId === node.id;
 
     const stateClass = !fog
       ? ""
       : [
           secret ? "is-secret" : "is-known",
+          nodeLocked ? "is-locked" : "",
           fog.current === node.id ? "is-current" : "",
           fog.visited.has(node.id) ? "is-visited" : "",
           fog.available.has(node.id) ? "is-available" : ""
@@ -160,6 +173,15 @@ export function renderSvg(map, options = {}) {
     if (interactive) {
       parts.push(
         `<title>${escapeXml(`${label} — ${localize("SPIREMAP.preview.floor")} ${node.floor}`)}</title>`
+      );
+    }
+
+    // Anel de caminho secreto (só nas visões do Mestre).
+    if (node.secretPath && !playerView) {
+      parts.push(
+        `<circle cx="${node.x}" cy="${node.y}" r="${(radius * 1.2).toFixed(1)}" fill="none" ` +
+          `stroke="${escapeXml(secretColor)}" stroke-width="${Math.max(2, config.nodeStrokeWidth * 0.7)}" ` +
+          `stroke-opacity="${nodeLocked ? 0.9 : 0.6}" stroke-dasharray="${(radius * 0.22).toFixed(1)} ${(radius * 0.2).toFixed(1)}"/>`
       );
     }
 
@@ -210,11 +232,11 @@ export function renderSvg(map, options = {}) {
     }
     parts.push("</g>");
 
-    if (config.showLabels && (known || !fog)) {
+    if ((config.showLabels || alias) && (known || !fog || alias)) {
       parts.push(
         `<text x="${node.x}" y="${(node.y + radius + config.fontSize * 0.62).toFixed(1)}" text-anchor="middle" ` +
           `font-family="${escapeXml(config.fontFamily)}" font-size="${(config.fontSize * 0.52).toFixed(0)}" ` +
-          `fill="${escapeXml(realType.color)}" opacity="0.9">${escapeXml(localize(realType.label))}</text>`
+          `fill="${escapeXml(realType.color)}" opacity="0.9">${escapeXml(alias || localize(realType.label))}</text>`
       );
     }
     parts.push("</g>");

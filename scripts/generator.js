@@ -29,6 +29,7 @@ import { DEFAULT_CONFIG, DEFAULT_NODE_TYPES, LIMITS } from "./constants.js";
  * @property {string[]} parents  ids dos nós do andar anterior
  * @property {string[]} children ids dos nós do andar seguinte
  * @property {boolean}  isBoss
+ * @property {number}   [secretPath] id do caminho secreto a que o nó pertence (ausente nos nós comuns)
  */
 
 /**
@@ -38,7 +39,8 @@ import { DEFAULT_CONFIG, DEFAULT_NODE_TYPES, LIMITS } from "./constants.js";
  * @property {number}       totalFloors
  * @property {MapNode[]}    nodes
  * @property {MapNode[][]}  byFloor      índice 0 = andar 1
- * @property {{from:string,to:string}[]} edges
+ * @property {{from:string,to:string,secret?:number}[]} edges
+ * @property {{id:number,key:string,nodes:string[],exit:string}[]} secretPaths
  * @property {{width:number,height:number}} bounds
  * @property {Record<string,number>} counts contagem por typeId
  * @property {string[]}     warnings
@@ -96,6 +98,10 @@ export function normalizeConfig(partial = {}) {
   c.revealLookahead = clamp(toInt(c.revealLookahead, 1), [0, 5]);
   if (!["onChoice", "manual"].includes(c.revealMode)) c.revealMode = "onChoice";
 
+  c.secretPaths = clamp(toInt(c.secretPaths, 0), LIMITS.secretPaths);
+  c.secretPathLength = clamp(toInt(c.secretPathLength, 2), LIMITS.secretPathLength);
+  c.secretPathColor = normalizeColor(c.secretPathColor, DEFAULT_CONFIG.secretPathColor);
+
   for (const key of [
     "firstFloorFixed",
     "bossEnabled",
@@ -134,6 +140,8 @@ export function normalizeConfig(partial = {}) {
   const firstRandom = c.nodeTypes.find((t) => !t.reserved && t.weight > 0);
   if (!ids.has(c.firstFloorType)) c.firstFloorType = firstRandom?.id ?? c.nodeTypes[0].id;
   if (!ids.has(c.bossType)) c.bossType = c.nodeTypes[c.nodeTypes.length - 1].id;
+  c.secretPathType = String(c.secretPathType ?? "");
+  if (!ids.has(c.secretPathType)) c.secretPathType = "";
 
   c.seed = String(c.seed ?? "").trim();
   return c;
@@ -173,7 +181,9 @@ export function normalizeNodeTypes(list) {
       maxPerFloor: Math.max(0, toInt(raw.maxPerFloor, 0)),
       maxTotal: Math.max(0, toInt(raw.maxTotal, 0)),
       noRepeatOnPath: toBool(raw.noRepeatOnPath),
-      reserved: toBool(raw.reserved)
+      reserved: toBool(raw.reserved),
+      // Configurações salvas antes da 1.4.0 não têm o campo: o Evento "?" padrão assume o papel.
+      resolvable: raw.resolvable === undefined ? unique === "event" : toBool(raw.resolvable)
     });
   }
   return out.length ? out : DEFAULT_NODE_TYPES.map((t) => ({ ...t }));
@@ -209,6 +219,12 @@ export function generateMap(inputConfig = {}) {
   assignTypes(nodes, lattice, config, rng, totalFloors);
   const bounds = layout(nodes, config, rng, totalFloors);
 
+  // Os caminhos secretos entram por último e com um gerador próprio: com `secretPaths = 0`
+  // (ou em qualquer seed antiga) o mapa principal sai exatamente igual ao de antes.
+  const secretPaths =
+    config.secretPaths > 0 ? addSecretPaths(lattice, config, seed, totalFloors, warnings) : [];
+  for (const path of secretPaths) for (const id of path.nodes) nodes.push(lattice.nodes.get(id));
+
   const byFloor = Array.from({ length: totalFloors }, () => []);
   for (const node of nodes) byFloor[node.floor - 1].push(node);
   for (const floorNodes of byFloor) floorNodes.sort((a, b) => a.col - b.col);
@@ -223,6 +239,7 @@ export function generateMap(inputConfig = {}) {
     nodes,
     byFloor,
     edges: lattice.edges,
+    secretPaths,
     bounds,
     counts,
     warnings
@@ -545,16 +562,150 @@ function layout(nodes, config, rng, totalFloors) {
   const width = Math.round(config.marginX * 2 + (config.columns - 1) * config.spacingX);
   const height = Math.round(config.marginY * 2 + (totalFloors - 1) * config.spacingY);
 
-  for (const node of nodes) {
-    const jx = config.jitterX ? rng.range(-config.jitterX, config.jitterX) : 0;
-    const jy = config.jitterY ? rng.range(-config.jitterY, config.jitterY) : 0;
-    const rowIndex = config.orientation === "up" ? totalFloors - node.floor : node.floor - 1;
-
-    node.x = Math.round(config.marginX + node.col * config.spacingX + (node.isBoss ? 0 : jx));
-    node.y = Math.round(config.marginY + rowIndex * config.spacingY + (node.isBoss ? 0 : jy));
-  }
+  for (const node of nodes) placeNode(node, config, rng, totalFloors);
 
   return { width, height };
+}
+
+function placeNode(node, config, rng, totalFloors) {
+  const jx = config.jitterX ? rng.range(-config.jitterX, config.jitterX) : 0;
+  const jy = config.jitterY ? rng.range(-config.jitterY, config.jitterY) : 0;
+  const rowIndex = config.orientation === "up" ? totalFloors - node.floor : node.floor - 1;
+
+  node.x = Math.round(config.marginX + node.col * config.spacingX + (node.isBoss ? 0 : jx));
+  node.y = Math.round(config.marginY + rowIndex * config.spacingY + (node.isBoss ? 0 : jy));
+}
+
+/* -------------------------------------------------------------------------- */
+/*  4. Caminhos secretos                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Acrescenta ramais secretos ao mapa já pronto.
+ *
+ * Um caminho secreto sai de um nó comum (a **chave**), passa por 1..`secretPathLength` salas
+ * novas em casas livres da grade e volta para um nó comum mais acima. Nós e arestas do ramal
+ * levam `secretPath`/`secret` com o id do caminho; quem decide quando eles aparecem para os
+ * jogadores é o progresso (ver `progress.js`): só depois que o grupo escolhe o nó-chave.
+ *
+ * @returns {{id:number,key:string,nodes:string[],exit:string}[]}
+ */
+function addSecretPaths(lattice, config, seed, totalFloors, warnings) {
+  const rng = new Rng(`${seed}#secret`);
+  const { nodes, edges } = lattice;
+  const paths = [];
+
+  // Arestas por andar de origem (só as colunas), para o anti-cruzamento.
+  const byFloor = new Map();
+  const track = (floor, a, b) => {
+    if (!byFloor.has(floor)) byFloor.set(floor, []);
+    byFloor.get(floor).push({ a, b });
+  };
+  for (const edge of edges) {
+    const from = nodes.get(edge.from);
+    const to = nodes.get(edge.to);
+    if (from && to && !to.isBoss) track(from.floor, from.col, to.col);
+  }
+  const crosses = (floor, a, b) =>
+    config.preventCrossing && (byFloor.get(floor) ?? []).some((e) => (e.a - a) * (e.b - b) < 0);
+
+  const types = config.nodeTypes;
+  const fixedType = types.find((ty) => ty.id === config.secretPathType) ?? null;
+  const typeFor = (floor) =>
+    fixedType ??
+    rng.weighted(
+      types.filter((ty) => !ty.reserved && ty.weight > 0 && floor >= ty.minFloor),
+      (ty) => ty.weight
+    ) ??
+    fallbackType(types);
+
+  const usedKeys = new Set();
+  let attempts = config.secretPaths * 80;
+
+  while (paths.length < config.secretPaths && attempts-- > 0) {
+    // A saída precisa cair em um andar existente (o boss conta).
+    const maxLen = Math.min(config.secretPathLength, totalFloors - 2);
+    if (maxLen < 1) break;
+    const len = rng.int(1, maxLen);
+    const keyFloor = rng.int(1, totalFloors - len - 1);
+    const keys = [...nodes.values()].filter(
+      (n) => n.floor === keyFloor && !n.secretPath && !n.isBoss && !usedKeys.has(n.id)
+    );
+    if (!keys.length) continue;
+    const key = rng.pick(keys);
+
+    // Sobe pela grade ocupando apenas casas livres.
+    const cols = [];
+    let col = key.col;
+    let ok = true;
+    for (let step = 1; step <= len && ok; step++) {
+      const floor = keyFloor + step;
+      const from = col;
+      const options = [from - 1, from, from + 1].filter(
+        (c) =>
+          c >= 0 &&
+          c < config.columns &&
+          !nodes.has(nodeId(floor, c)) &&
+          !crosses(floor - 1, from, c)
+      );
+      if (!options.length) ok = false;
+      else {
+        col = rng.pick(options);
+        cols.push(col);
+      }
+    }
+    if (!ok) continue;
+
+    // Reencontra o mapa em um nó comum do andar seguinte.
+    const exitFloor = keyFloor + len + 1;
+    const exits = [...nodes.values()].filter(
+      (n) =>
+        n.floor === exitFloor &&
+        !n.secretPath &&
+        (n.isBoss || (Math.abs(n.col - col) <= 1 && !crosses(exitFloor - 1, col, n.col)))
+    );
+    if (!exits.length) continue;
+    const exit = rng.pick(exits);
+
+    const id = paths.length + 1;
+    const chain = [key];
+    cols.forEach((c, i) => {
+      const floor = keyFloor + i + 1;
+      const node = {
+        id: nodeId(floor, c),
+        floor,
+        col: c,
+        typeId: typeFor(floor).id,
+        x: 0,
+        y: 0,
+        parents: [],
+        children: [],
+        isBoss: false,
+        secretPath: id
+      };
+      placeNode(node, config, rng, totalFloors);
+      nodes.set(node.id, node);
+      chain.push(node);
+    });
+    chain.push(exit);
+
+    for (let i = 0; i < chain.length - 1; i++) {
+      const from = chain[i];
+      const to = chain[i + 1];
+      from.children.push(to.id);
+      to.parents.push(from.id);
+      edges.push({ from: from.id, to: to.id, secret: id });
+      if (!to.isBoss) track(from.floor, from.col, to.col);
+    }
+
+    usedKeys.add(key.id);
+    paths.push({ id, key: key.id, nodes: chain.slice(1, -1).map((n) => n.id), exit: exit.id });
+  }
+
+  if (paths.length < config.secretPaths) {
+    warnings.push(`caminhos secretos: ${paths.length}/${config.secretPaths} couberam na grade`);
+  }
+  return paths;
 }
 
 /* -------------------------------------------------------------------------- */
