@@ -4,7 +4,7 @@ Todas as mudanças relevantes deste módulo. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões usam
 [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [1.5.0] — 2026-10-18
 
 ### Adicionado
 
