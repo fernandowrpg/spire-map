@@ -101,6 +101,30 @@
 
         <h3 class="spire-legend">{{localize "SPIREMAP.reveal.options"}}</h3>
         {{#if available.length}}
+          <div class="spire-box spire-votebox">
+            {{#if vote}}
+              <p>
+                <i class="fa-solid fa-check-to-slot"></i>
+                <strong>{{localize "SPIREMAP.vote.open"}}</strong>
+                <span class="spire-badge">{{vote.total}}/{{vote.expected}}</span>
+                {{#if vote.tie}}<span class="spire-badge spire-badge--secret">{{localize "SPIREMAP.vote.tieShort"}}</span>{{/if}}
+              </p>
+              <div class="spire-toolbar spire-toolbar--wrap">
+                <button type="button" class="spire-btn spire-btn--primary" data-action="spireCloseVote"
+                        data-tooltip="{{localize 'SPIREMAP.vote.closeHint'}}">
+                  <i class="fa-solid fa-gavel"></i> {{localize "SPIREMAP.vote.close"}}
+                </button>
+                <button type="button" class="spire-btn spire-btn--ghost" data-action="spireCancelVote">
+                  <i class="fa-solid fa-xmark"></i> {{localize "SPIREMAP.vote.cancel"}}
+                </button>
+              </div>
+            {{else}}
+              <button type="button" class="spire-btn" data-action="spireStartVote"
+                      data-tooltip="{{localize 'SPIREMAP.vote.startHint'}}">
+                <i class="fa-solid fa-check-to-slot"></i> {{localize "SPIREMAP.vote.start"}}
+              </button>
+            {{/if}}
+          </div>
           <div class="spire-choices">
             {{#each available}}
               <button type="button" class="spire-choice" data-action="spireChoose" data-node-id="{{id}}">
@@ -111,6 +135,9 @@
                 </span>
                 {{#if secretPath}}<i class="fa-solid fa-key" data-tooltip="{{localize 'SPIREMAP.secretPath.node'}}"></i>{{/if}}
                 {{#unless revealed}}<i class="fa-solid fa-lock" data-tooltip="{{localize 'SPIREMAP.reveal.stateHidden'}}"></i>{{/unless}}
+                {{#if ../vote}}
+                  <span class="spire-vote__count {{#if isLeader}}is-leader{{/if}}" data-tooltip="{{voters}}">{{votes}}</span>
+                {{/if}}
                 <i class="fa-solid fa-chevron-right"></i>
               </button>
             {{/each}}

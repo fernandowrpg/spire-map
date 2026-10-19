@@ -46,6 +46,15 @@ export function registerSettings() {
     requiresReload: true
   });
 
+  game.settings.register(MODULE_ID, SETTINGS.AUTO_VOTE, {
+    name: "SPIREMAP.settings.autoVote.name",
+    hint: "SPIREMAP.settings.autoVote.hint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
   game.settings.register(MODULE_ID, SETTINGS.AUTO_PREVIEW, {
     name: "SPIREMAP.settings.autoPreview.name",
     hint: "SPIREMAP.settings.autoPreview.hint",

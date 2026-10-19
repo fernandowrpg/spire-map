@@ -1035,3 +1035,57 @@
 .spire-nodechip.is-locked {
   opacity: 0.55;
 }
+
+/* =========================================================================
+   Votação do caminho
+   ========================================================================= */
+
+.spire-vote__options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+}
+
+.spire-vote__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  line-height: 1.2;
+  padding: 4px 6px;
+}
+
+.spire-vote__option.is-mine {
+  outline: 2px solid var(--color-warm-2, #ff6400);
+}
+
+.spire-vote__option.is-winner {
+  background: rgba(80, 180, 90, 0.25);
+}
+
+.spire-vote__label {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.spire-vote__count {
+  min-width: 1.6em;
+  padding: 0 4px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.spire-vote__count.is-leader {
+  background: var(--color-warm-2, #ff6400);
+  color: #fff;
+}
+
+.spire-vote__footer {
+  margin: 0;
+  font-style: italic;
+}

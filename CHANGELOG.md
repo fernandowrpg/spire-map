@@ -4,6 +4,20 @@ Todas as mudanças relevantes deste módulo. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões usam
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Adicionado
+
+- **Votação do caminho.** A escolha da próxima sala passa a ser votada pelos jogadores
+  conectados: um cartão no chat traz um botão por opção (salas ainda ocultas aparecem como
+  *Sala desconhecida*), e cada jogador pode trocar o voto até todos votarem. Com todos os votos,
+  a mais votada é escolhida sozinha; em empate, o Mestre clica em uma das empatadas. O controle
+  de revelação mostra a contagem e tem *Abrir votação*, *Encerrar agora* e *Cancelar*. A
+  configuração *Votação automática do caminho* (ligada por padrão) abre a votação a cada
+  avanço com mais de uma opção. Qualquer escolha do Mestre encerra a votação aberta.
+- API: `SpireMap.startVote()`, `closeVote()`, `cancelVote()` e `readVote()`.
+- O módulo agora usa socket (`"socket": true`) para levar os votos ao Mestre.
+
 ## [1.4.1] — 2026-10-11
 
 ### Adicionado

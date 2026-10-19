@@ -31,7 +31,7 @@
       "path": "lang/pt-BR.json"
     }
   ],
-  "socket": false,
+  "socket": true,
   "manifestPlusVersion": "1.2.0",
   "media": [],
   "url": "https://github.com/fernandowrpg/spire-map",

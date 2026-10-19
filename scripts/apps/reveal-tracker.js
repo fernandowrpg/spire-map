@@ -46,6 +46,7 @@ import {
   adversaryOf
 } from "../progress.js";
 import { smartLocalize } from "../i18n.js";
+import { readVote, tally, activeVoters, startVote, closeVote, cancelVote } from "../vote.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin, DialogV2 } = foundry.applications.api;
 
@@ -53,7 +54,10 @@ const { ApplicationV2, HandlebarsApplicationMixin, DialogV2 } = foundry.applicat
 const ERROR_KEY = {
   notAvailable: "SPIREMAP.reveal.error.notAvailable",
   unknownNode: "SPIREMAP.reveal.error.unknownNode",
-  noMap: "SPIREMAP.reveal.error.noMap"
+  noMap: "SPIREMAP.reveal.error.noMap",
+  noOptions: "SPIREMAP.reveal.noOptions",
+  tie: "SPIREMAP.vote.tie",
+  noVotes: "SPIREMAP.vote.noVotes"
 };
 
 /** Rótulo de cada estado. */
@@ -119,7 +123,10 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
       spireDefeat: SpireRevealTracker.#onDefeat,
       spireClearAdversary: SpireRevealTracker.#onClearAdversary,
       spireOpenAdversary: SpireRevealTracker.#onOpenAdversary,
-      spireClearHistory: SpireRevealTracker.#onClearHistory
+      spireClearHistory: SpireRevealTracker.#onClearHistory,
+      spireStartVote: SpireRevealTracker.#onStartVote,
+      spireCloseVote: SpireRevealTracker.#onCloseVote,
+      spireCancelVote: SpireRevealTracker.#onCancelVote
     }
   };
 
@@ -212,10 +219,18 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
     }
 
     const current = map.nodes.find((n) => n.id === progress.current);
+    // Votação aberta: votos de cada opção e quem votou.
+    const vote = readVote(scene);
+    const count = vote ? tally(vote) : null;
     const available = (progress.available ?? [])
       .map((id) => map.nodes.find((n) => n.id === id))
       .filter(Boolean)
-      .map(describe);
+      .map((node) => ({
+        ...describe(node),
+        votes: count?.counts.get(node.id) ?? 0,
+        voters: (count?.voters.get(node.id) ?? []).join(", "),
+        isLeader: Boolean(count?.max) && count.leaders.includes(node.id)
+      }));
     const selected = this.selectedNodeId
       ? map.nodes.find((n) => n.id === this.selectedNodeId)
       : null;
@@ -251,6 +266,9 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
       summary,
       currentLabel: current ? describe(current) : null,
       available,
+      vote: vote
+        ? { total: count.total, expected: activeVoters().length, tie: count.leaders.length > 1 }
+        : null,
       floors,
       selected: selectedInfo,
       secretPathCount: (map.secretPaths ?? []).length,
@@ -588,6 +606,29 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
     });
     if (!confirmed) return;
     await game.settings.set(MODULE_ID, SETTINGS.BOSS_HISTORY, []);
+    this.render();
+  }
+
+  /* -------------------------------- votação ------------------------------- */
+
+  static async #onStartVote() {
+    const result = await startVote(this.scene);
+    if (!result.ok) ui.notifications.warn(game.i18n.localize(ERROR_KEY[result.error] ?? String(result.error)));
+    this.render();
+  }
+
+  static async #onCloseVote() {
+    const result = await closeVote(this.scene);
+    if (!result.ok) {
+      ui.notifications.warn(game.i18n.localize(ERROR_KEY[result.error] ?? String(result.error)));
+      return this.render();
+    }
+    this.selectedNodeId = null;
+    this.render();
+  }
+
+  static async #onCancelVote() {
+    await cancelVote(this.scene);
     this.render();
   }
 

@@ -25,6 +25,7 @@ import { SpireRevealTracker } from "./apps/reveal-tracker.js";
 import { smartLocalize } from "./i18n.js";
 import { registerSettings, getStoredConfig } from "./settings.js";
 import { Rng, randomSeedString } from "./rng.js";
+import { registerVoting, startVote, closeVote, cancelVote, readVote } from "./vote.js";
 
 const log = (...args) => console.log(`${MODULE_ID} |`, ...args);
 
@@ -175,6 +176,20 @@ Hooks.once("init", async () => {
       return applyProgressToScene(scene, data.map, data.progress ?? {});
     },
 
+    /* ------------------------------- votação ------------------------------- */
+
+    /** Abre a votação do caminho com as opções atuais (Mestre). */
+    startVote: (scene = canvas?.scene ?? game.scenes?.active) => startVote(scene),
+
+    /** Encerra a votação: a mais votada vence (empate fica para o Mestre). */
+    closeVote: (scene = canvas?.scene ?? game.scenes?.active) => closeVote(scene),
+
+    /** Cancela a votação sem escolher nada. */
+    cancelVote: (scene = canvas?.scene ?? game.scenes?.active) => cancelVote(scene),
+
+    /** Votação aberta na cena, ou `null`. */
+    readVote: (scene = canvas?.scene ?? game.scenes?.active) => readVote(scene),
+
     /** Biblioteca pura de progresso (funções sem efeito colateral). */
     progress: ProgressLib,
 
@@ -209,6 +224,7 @@ Hooks.once("init", async () => {
 /* -------------------------------------------------------------------------- */
 
 Hooks.once("ready", () => {
+  registerVoting();
   if (!game.user.isGM) return;
   log(`pronto — abra o painel com Alt+M ou pelo botão na barra de ferramentas.`);
 });

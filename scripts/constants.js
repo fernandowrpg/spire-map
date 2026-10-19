@@ -12,7 +12,9 @@ export const SETTINGS = {
   SHOW_SCENE_BUTTON: "showSceneButton",
   AUTO_PREVIEW: "autoPreview",
   /** Histórico de adversários derrotados nos nós de boss (sobrevive a regenerar o mapa). */
-  BOSS_HISTORY: "bossHistory"
+  BOSS_HISTORY: "bossHistory",
+  /** Abre a votação do caminho sozinha a cada avanço do grupo. */
+  AUTO_VOTE: "autoVote"
 };
 
 /** Flag namespace usado em todos os documentos criados pelo módulo. */
@@ -24,7 +26,9 @@ export const FLAG = {
   /** Cena: mapa desenhado (grafo + config), usado pelo controle de revelação. */
   MAP: "map",
   /** Cena: estado de revelação e progresso do grupo. */
-  PROGRESS: "progress"
+  PROGRESS: "progress",
+  /** Cena: votação do caminho em andamento. */
+  VOTE: "vote"
 };
 
 /** Estados possíveis de um nó no controle de revelação. */
