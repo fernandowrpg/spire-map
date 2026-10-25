@@ -16,8 +16,9 @@
  *                 e arestas não existem para os jogadores (nem como "?").
  *  - `resolved` — salas "?" cujo tipo real o Mestre definiu (tipo + apelido + descrição).
  *  - `adversaries` — adversário vinculado a um nó de boss, e se já foi derrotado.
+ *  - `scenes`   — cena do mundo associada a um nó (qualquer nó), ativada quando o grupo chega lá.
  *
- * Os três últimos são **listas** de propósito: `Scene#setFlag` mescla objetos, então uma
+ * Os quatro últimos são **listas** de propósito: `Scene#setFlag` mescla objetos, então uma
  * entrada removida de um objeto voltaria a aparecer; listas são substituídas por inteiro.
  * Progresso gravado por versões anteriores não tem esses campos — todos valem `[]`.
  *
@@ -38,6 +39,7 @@ import { NODE_STATE } from "./constants.js";
  * @property {number[]} [unlocked]
  * @property {{id:string,typeId:string,alias:string,description:string}[]} [resolved]
  * @property {{id:string,uuid:string,name:string,img:string,defeated:boolean,defeatedAt:number|null}[]} [adversaries]
+ * @property {{id:string,uuid:string,name:string,img:string}[]} [scenes]
  */
 
 /** Índice id -> nó. */
@@ -133,7 +135,8 @@ export function createProgress(map, config, mapId) {
     lookahead: Number(config.revealLookahead ?? 1),
     unlocked: [],
     resolved: [],
-    adversaries: []
+    adversaries: [],
+    scenes: []
   };
 
   if (!config.secretNodes) {
@@ -299,8 +302,8 @@ export function hideUnvisited(map, progress) {
  * Zera o progresso, voltando ao estado inicial do mapa.
  *
  * Os caminhos secretos voltam a ficar trancados e os adversários deixam de constar como
- * derrotados. O que o Mestre preparou — tipo definido das salas "?" e adversário vinculado ao
- * boss — é mantido: só aparece para os jogadores quando o grupo chegar lá de novo.
+ * derrotados. O que o Mestre preparou — tipo definido das salas "?", adversário vinculado ao
+ * boss e cenas associadas aos nós — é mantido: só aparece para os jogadores quando o grupo chegar lá de novo.
  */
 export function resetProgress(map, progress, config) {
   const fresh = createProgress(map, { ...config, revealMode: progress.mode, revealLookahead: progress.lookahead }, progress.mapId);
@@ -308,6 +311,7 @@ export function resetProgress(map, progress, config) {
     ...fresh,
     resolved: [...(progress.resolved ?? [])],
     adversaries: (progress.adversaries ?? []).map((a) => ({ ...a, defeated: false, defeatedAt: null })),
+    scenes: [...(progress.scenes ?? [])],
     _order: []
   };
 }
@@ -422,6 +426,37 @@ export function setAdversaryDefeated(map, progress, nodeId, defeated = true, at 
       a.id === nodeId ? { ...a, defeated: Boolean(defeated), defeatedAt: defeated ? at : null } : a
     )
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Cena associada ao nó                                                      */
+/* -------------------------------------------------------------------------- */
+
+/** Cena do mundo associada a um nó, ou `null`. */
+export function sceneOf(progress, nodeId) {
+  return (progress?.scenes ?? []).find((s) => s.id === nodeId) ?? null;
+}
+
+/**
+ * Associa uma cena do mundo a um nó. Substitui a anterior.
+ * @param {{uuid:string, name:string, img?:string}} scene
+ */
+export function setNodeScene(map, progress, nodeId, scene = {}) {
+  if (!indexNodes(map).has(nodeId) || !scene.uuid) return progress;
+  const entry = {
+    id: nodeId,
+    uuid: String(scene.uuid),
+    name: String(scene.name ?? "").trim().slice(0, 120) || "?",
+    img: String(scene.img ?? "")
+  };
+  const scenes = (progress.scenes ?? []).filter((s) => s.id !== nodeId);
+  scenes.push(entry);
+  return { ...progress, scenes };
+}
+
+/** Remove a cena associada a um nó. */
+export function clearNodeScene(map, progress, nodeId) {
+  return { ...progress, scenes: (progress.scenes ?? []).filter((s) => s.id !== nodeId) };
 }
 
 /* -------------------------------------------------------------------------- */

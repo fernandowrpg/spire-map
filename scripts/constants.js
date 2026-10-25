@@ -14,7 +14,9 @@ export const SETTINGS = {
   /** Histórico de adversários derrotados nos nós de boss (sobrevive a regenerar o mapa). */
   BOSS_HISTORY: "bossHistory",
   /** Abre a votação do caminho sozinha a cada avanço do grupo. */
-  AUTO_VOTE: "autoVote"
+  AUTO_VOTE: "autoVote",
+  /** Ativa sozinha a cena associada ao nó quando o grupo entra nele. */
+  AUTO_NODE_SCENE: "autoNodeScene"
 };
 
 /** Flag namespace usado em todos os documentos criados pelo módulo. */

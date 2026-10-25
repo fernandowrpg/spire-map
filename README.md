@@ -227,6 +227,14 @@ Abre pelo botão do olho na barra de ferramentas, por `Alt + R`, ou junto com o 
   sob o nó quando o grupo chega lá. **Marcar como derrotado** registra o adversário em
   **Adversários derrotados**, um histórico do mundo (nome, imagem, cena, ato e data) que
   continua existindo depois que o mapa é regenerado ou a ficha é apagada.
+* **Cena do nó** — qualquer sala pode ter uma cena do mundo associada (o combate, a loja, o
+  acampamento): escolha no seletor do nó selecionado ou **arraste uma cena** da barra lateral
+  para a área tracejada ou para o nó no minimapa. **Ativar cena** coloca nela os tokens dos
+  personagens atribuídos aos jogadores conectados — em formação no ponto inicial da cena, ou
+  no centro; quem já tem token lá fica onde está — e ativa a cena para todos. **Só olhar**
+  abre a cena apenas para o Mestre. Fora do mapa, o controle continua mostrando o mapa e
+  oferece **Voltar ao mapa**. Com a configuração *Ativar a cena do nó automaticamente*
+  (desligada por padrão), escolher a sala já leva o grupo para a cena dela.
 
 O estado vive na flag `spire-map.progress` da cena, então sobrevive a recarregar o mundo,
 aparece igual para todos os clientes e continua de onde parou na sessão seguinte. Se você
@@ -358,6 +366,11 @@ await SpireMap.setSecretPath(1, true);   // true libera, false tranca, omitido a
 
 // Adversários derrotados nos nós de boss
 SpireMap.bossHistory();
+
+// Cena do nó: associar (cena ou uuid; null desfaz), ativar e só colocar os tokens
+await SpireMap.setNodeScene("f4c2", game.scenes.getName("Covil do Dragão"));
+await SpireMap.activateNodeScene("f4c2");
+await SpireMap.placePartyTokens(game.scenes.getName("Acampamento"));
 ```
 
 Cada *Drawing* de nó guarda os dados do nó em

@@ -1089,3 +1089,21 @@
   margin: 0;
   font-style: italic;
 }
+
+/* Cena do nó */
+.spire-nodescene .fa-map,
+.spire-choice .fa-map {
+  color: var(--spire-accent);
+}
+
+.spire-nodescene__away {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.spire-nodescene__away p {
+  flex: 1 1 auto;
+  margin: 0;
+}

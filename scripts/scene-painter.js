@@ -32,8 +32,10 @@ import {
   advanceTo,
   toFog,
   lockedNodes,
-  makeDisplay
+  makeDisplay,
+  sceneOf
 } from "./progress.js";
+import { activateNodeScene, autoActivateEnabled } from "./node-scene.js";
 
 /**
  * Códigos de forma e enums lidos do próprio Foundry em tempo de execução, com os valores
@@ -1143,7 +1145,7 @@ export async function applyProgressToScene(scene, map, progress, options = {}) {
  * @param {string} nodeId
  * @param {object} [options]
  * @param {boolean} [options.force] aceita um nó fora das opções atuais
- * @returns {Promise<{ok:boolean, error?:string, revealedNow?:string[], progress?:object}>}
+ * @returns {Promise<{ok:boolean, error?:string, revealedNow?:string[], progress?:object, nodeScene?:object|null}>}
  */
 export async function chooseNode(scene, nodeId, options = {}) {
   const data = readSceneMap(scene);
@@ -1169,11 +1171,18 @@ export async function chooseNode(scene, nodeId, options = {}) {
     });
   }
 
+  // Com a ativação automática ligada, o grupo vai direto para a cena associada ao nó.
+  const nodeScene =
+    autoActivateEnabled() && sceneOf(result.progress, nodeId)
+      ? await activateNodeScene(result.progress, nodeId)
+      : null;
+
   return {
     ok: true,
     revealedNow: result.revealedNow,
     unlockedNow: result.unlockedNow,
-    progress: result.progress
+    progress: result.progress,
+    nodeScene
   };
 }
 

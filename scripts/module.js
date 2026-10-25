@@ -26,6 +26,7 @@ import { smartLocalize } from "./i18n.js";
 import { registerSettings, getStoredConfig } from "./settings.js";
 import { Rng, randomSeedString } from "./rng.js";
 import { registerVoting, startVote, closeVote, cancelVote, readVote } from "./vote.js";
+import { activateNodeScene, placePartyTokens } from "./node-scene.js";
 
 const log = (...args) => console.log(`${MODULE_ID} |`, ...args);
 
@@ -162,6 +163,34 @@ Hooks.once("init", async () => {
       const progress = found.progress ?? ProgressLib.createProgress(found.map, found.map.config, found.mapId);
       return setProgress(scene, ProgressLib.setSecretPath(found.map, progress, pathId, state));
     },
+
+    /**
+     * Associa uma cena do mundo a um nó.
+     * @param {string} nodeId
+     * @param {Scene|string|null} target cena ou uuid; `null` desfaz
+     */
+    async setNodeScene(nodeId, target, scene = canvas?.scene ?? game.scenes?.active) {
+      const found = readSceneMap(scene);
+      if (!found) return { ok: false, error: "noMap" };
+      const progress = found.progress ?? ProgressLib.createProgress(found.map, found.map.config, found.mapId);
+      if (!target) return setProgress(scene, ProgressLib.clearNodeScene(found.map, progress, nodeId));
+      const doc = typeof target === "string" ? await fromUuid(target) : target;
+      if (!(doc instanceof Scene)) return { ok: false, error: "missingScene" };
+      return setProgress(
+        scene,
+        ProgressLib.setNodeScene(found.map, progress, nodeId, { uuid: doc.uuid, name: doc.name, img: doc.thumb ?? "" })
+      );
+    },
+
+    /** Ativa a cena associada a um nó, colocando nela os tokens dos jogadores. */
+    async activateNodeScene(nodeId, scene = canvas?.scene ?? game.scenes?.active) {
+      const found = readSceneMap(scene);
+      if (!found) return { ok: false, error: "noMap" };
+      return activateNodeScene(found.progress ?? {}, nodeId);
+    },
+
+    /** Coloca os tokens dos personagens dos jogadores em uma cena (sem ativá-la). */
+    placePartyTokens: (scene) => placePartyTokens(scene),
 
     /** Histórico de adversários derrotados nos nós de boss. */
     bossHistory: () => {

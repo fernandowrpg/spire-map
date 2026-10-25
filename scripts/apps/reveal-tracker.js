@@ -7,7 +7,8 @@
  * reiniciar o progresso.
  *
  * Também é aqui que o Mestre define o que uma sala "?" revelou ser, libera caminhos secretos
- * na mão e arrasta o adversário para o nó do boss.
+ * na mão, arrasta o adversário para o nó do boss e associa a cada nó uma cena do mundo, que pode
+ * ser ativada com os tokens dos jogadores já colocados nela.
  *
  * @module spire-map/apps/reveal-tracker
  */
@@ -43,8 +44,12 @@ import {
   setAdversary,
   clearAdversary,
   setAdversaryDefeated,
-  adversaryOf
+  adversaryOf,
+  sceneOf,
+  setNodeScene,
+  clearNodeScene
 } from "../progress.js";
+import { activateNodeScene } from "../node-scene.js";
 import { smartLocalize } from "../i18n.js";
 import { readVote, tally, activeVoters, startVote, closeVote, cancelVote } from "../vote.js";
 
@@ -57,7 +62,9 @@ const ERROR_KEY = {
   noMap: "SPIREMAP.reveal.error.noMap",
   noOptions: "SPIREMAP.reveal.noOptions",
   tie: "SPIREMAP.vote.tie",
-  noVotes: "SPIREMAP.vote.noVotes"
+  noVotes: "SPIREMAP.vote.noVotes",
+  noScene: "SPIREMAP.nodeScene.none",
+  missingScene: "SPIREMAP.nodeScene.missing"
 };
 
 /** Rótulo de cada estado. */
@@ -72,6 +79,9 @@ const STATE_LABEL = {
 export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2) {
   /** @type {SpireRevealTracker|null} */
   static #instance = null;
+
+  /** Última cena com mapa vista: o controle continua nela enquanto o grupo está na cena de um nó. */
+  static #mapSceneId = null;
 
   static open() {
     if (!SpireRevealTracker.#instance) SpireRevealTracker.#instance = new SpireRevealTracker();
@@ -126,7 +136,10 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
       spireClearHistory: SpireRevealTracker.#onClearHistory,
       spireStartVote: SpireRevealTracker.#onStartVote,
       spireCloseVote: SpireRevealTracker.#onCloseVote,
-      spireCancelVote: SpireRevealTracker.#onCancelVote
+      spireCancelVote: SpireRevealTracker.#onCancelVote,
+      spireActivateScene: SpireRevealTracker.#onActivateScene,
+      spireViewScene: SpireRevealTracker.#onViewScene,
+      spireBackToMap: SpireRevealTracker.#onBackToMap
     }
   };
 
@@ -137,9 +150,24 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
     }
   };
 
-  /** Cena observada: a que está sendo visualizada. */
+  /**
+   * Cena observada: a que está sendo visualizada, se tiver um mapa. Fora dela (na cena de um nó,
+   * por exemplo), continua a última cena com mapa — ou a que tem um nó apontando para a cena atual.
+   */
   get scene() {
-    return canvas?.scene ?? game.scenes?.active ?? null;
+    const viewed = canvas?.scene ?? game.scenes?.active ?? null;
+    if (viewed && readSceneMap(viewed)) {
+      SpireRevealTracker.#mapSceneId = viewed.id;
+      return viewed;
+    }
+    const remembered = game.scenes?.get(SpireRevealTracker.#mapSceneId);
+    if (remembered && readSceneMap(remembered)) return remembered;
+    const owner = viewed
+      ? game.scenes?.find((s) =>
+          (s.getFlag(MODULE_ID, FLAG.PROGRESS)?.scenes ?? []).some((e) => e.uuid === viewed.uuid)
+        )
+      : null;
+    return owner ?? viewed;
   }
 
   #onSceneUpdate(scene, changes) {
@@ -200,6 +228,7 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
         isAvailable: state === NODE_STATE.AVAILABLE,
         isVisited: state === NODE_STATE.VISITED || state === NODE_STATE.CURRENT,
         revealed: (progress.revealed ?? []).includes(node.id),
+        hasScene: Boolean(sceneOf(progress, node.id)),
         isBoss: node.isBoss
       };
     };
@@ -251,16 +280,20 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
           selected: t.id === chosenType
         })),
         isBossNode: isBossNode(map, selected),
-        adversary: adversaryOf(progress, selected.id)
+        adversary: adversaryOf(progress, selected.id),
+        ...SpireRevealTracker.#sceneChoice(scene, sceneOf(progress, selected.id))
       };
     }
 
     this._map = map;
     this._progress = progress;
 
+    const viewed = canvas?.scene ?? null;
     return {
       hasMap: true,
       sceneName: scene.name,
+      viewingElsewhere: Boolean(viewed && viewed.id !== scene.id),
+      viewedName: viewed?.name ?? "",
       seed: map.seed,
       secret: Boolean(map.config.secretNodes),
       summary,
@@ -351,7 +384,26 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
   }
 
   /**
-   * Liga arrastar-e-soltar de atores em um elemento.
+   * Cena associada ao nó selecionado e as opções do seletor (todas as cenas do mundo, menos a
+   * do mapa). Uma cena apagada continua listada, marcada como ausente.
+   * @param {Scene} mapScene
+   * @param {{uuid:string,name:string}|null} entry
+   */
+  static #sceneChoice(mapScene, entry) {
+    const options = (game.scenes?.contents ?? [])
+      .filter((s) => s.id !== mapScene.id)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((s) => ({ value: s.uuid, label: s.name, selected: s.uuid === entry?.uuid }));
+    const missing = Boolean(entry) && !options.some((o) => o.selected);
+    if (missing) options.unshift({ value: entry.uuid, label: entry.name, selected: true });
+    return {
+      nodeScene: entry ? { ...entry, missing, active: game.scenes?.active?.uuid === entry.uuid } : null,
+      sceneOptions: options
+    };
+  }
+
+  /**
+   * Liga arrastar-e-soltar de atores e cenas em um elemento.
    * @param {HTMLElement} el
    * @param {(event: DragEvent) => string|undefined} resolveNodeId
    */
@@ -365,12 +417,53 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
       event.preventDefault();
       el.classList.remove("is-dragover");
       const nodeId = resolveNodeId(event);
-      if (nodeId) await this.#dropAdversary(event, nodeId);
+      if (nodeId) await this.#onDrop(event, nodeId);
     });
   }
 
+  /** Uma cena solta vira a cena do nó; um ator, o adversário do boss. */
+  async #onDrop(event, nodeId) {
+    let data = null;
+    try {
+      const editor = foundry.applications?.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
+      data = editor?.getDragEventData?.(event) ?? JSON.parse(event.dataTransfer.getData("text/plain"));
+    } catch (err) {
+      data = null;
+    }
+    if (data?.type === "Scene" && data.uuid) return this.#setScene(nodeId, data.uuid);
+    return this.#dropAdversary(data, nodeId);
+  }
+
+  /** Associa uma cena do mundo ao nó (`uuid` vazio desfaz). */
+  async #setScene(nodeId, uuid) {
+    const state = this.#fresh();
+    if (!state || !state.map.nodes.some((n) => n.id === nodeId)) return;
+    let scene = null;
+    if (uuid) {
+      try {
+        scene = await fromUuid(uuid);
+      } catch (err) {
+        scene = null;
+      }
+      if (!(scene instanceof Scene)) {
+        ui.notifications.warn(game.i18n.localize("SPIREMAP.nodeScene.missing"));
+        return;
+      }
+    }
+    const progress = scene
+      ? setNodeScene(state.map, state.progress, nodeId, {
+          uuid: scene.uuid,
+          name: scene.name,
+          img: scene.thumb ?? ""
+        })
+      : clearNodeScene(state.map, state.progress, nodeId);
+    await setProgress(this.scene, progress);
+    this.selectedNodeId = nodeId;
+    this.render();
+  }
+
   /** Vincula ao nó o ator solto (barra lateral, compêndio ou token). */
-  async #dropAdversary(event, nodeId) {
+  async #dropAdversary(data, nodeId) {
     const state = this.#fresh();
     const node = state?.map.nodes.find((n) => n.id === nodeId);
     if (!node) return;
@@ -379,13 +472,6 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
       return;
     }
 
-    let data = null;
-    try {
-      const editor = foundry.applications?.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
-      data = editor?.getDragEventData?.(event) ?? JSON.parse(event.dataTransfer.getData("text/plain"));
-    } catch (err) {
-      data = null;
-    }
     if (!data?.uuid || !["Actor", "Token"].includes(data.type)) {
       ui.notifications.warn(game.i18n.localize("SPIREMAP.boss.dropInvalid"));
       return;
@@ -451,6 +537,8 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
       await setProgress(this.scene, progress);
       this.render();
     }
+
+    if (el.name === "__nodeScene") await this.#setScene(el.dataset.nodeId, el.value);
   }
 
   /* ------------------------------- ações ------------------------------ */
@@ -495,7 +583,42 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
         game.i18n.format("SPIREMAP.reveal.revealedCount", { count: result.revealedNow.length })
       );
     }
+    if (result.nodeScene) SpireRevealTracker.#notifyActivation(result.nodeScene);
     this.render();
+  }
+
+  /** Avisa o resultado de ativar a cena de um nó. */
+  static #notifyActivation(result) {
+    if (!result.ok) {
+      ui.notifications.warn(game.i18n.localize(ERROR_KEY[result.error] ?? String(result.error)));
+      return;
+    }
+    ui.notifications.info(
+      game.i18n.format("SPIREMAP.nodeScene.activated", { name: result.scene.name, count: result.placed })
+    );
+  }
+
+  /* ------------------------------ cena do nó ------------------------------ */
+
+  static async #onActivateScene(event, target) {
+    const nodeId = target.dataset.nodeId ?? this.selectedNodeId;
+    const state = this.#fresh();
+    if (!nodeId || !state) return;
+    SpireRevealTracker.#notifyActivation(await activateNodeScene(state.progress, nodeId));
+    this.render();
+  }
+
+  /** Só o Mestre olha a cena, sem ativá-la para os jogadores. */
+  static async #onViewScene(event, target) {
+    const entry = sceneOf(this.#fresh()?.progress, target.dataset.nodeId ?? this.selectedNodeId);
+    const scene = entry ? await fromUuid(entry.uuid).catch(() => null) : null;
+    if (scene instanceof Scene) await scene.view();
+    else ui.notifications.warn(game.i18n.localize("SPIREMAP.nodeScene.missing"));
+  }
+
+  /** Ativa de novo a cena do mapa para todos. */
+  static async #onBackToMap() {
+    await this.scene?.activate();
   }
 
   /* ----------------------- sala "?" com tipo definido ---------------------- */

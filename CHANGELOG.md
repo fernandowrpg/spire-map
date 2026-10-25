@@ -4,6 +4,23 @@ Todas as mudanças relevantes deste módulo. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões usam
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.6.0] — 2026-10-25
+
+### Adicionado
+
+- **Cena do nó.** Qualquer nó do mapa pode ter uma cena do mundo associada: escolha no
+  seletor do nó selecionado no controle de revelação, ou arraste uma cena da barra lateral
+  para a área tracejada ou para o nó no minimapa. **Ativar cena** coloca nela os tokens dos
+  personagens atribuídos aos jogadores conectados (sem duplicar quem já está lá), em formação
+  no ponto inicial da cena ou no centro, e ativa a cena para todos. **Só olhar** abre a cena
+  apenas para o Mestre. As opções disponíveis mostram um ícone quando a sala tem cena.
+- Fora da cena do mapa, o controle de revelação continua mostrando o mapa e oferece
+  **Voltar ao mapa**.
+- Configuração *Ativar a cena do nó automaticamente* (desligada por padrão): escolher a sala,
+  pelo Mestre ou pela votação, já leva o grupo para a cena dela.
+- As cenas associadas são preparação do Mestre: sobrevivem a *Reiniciar progresso*.
+- API: `SpireMap.setNodeScene()`, `activateNodeScene()` e `placePartyTokens()`.
+
 ## [1.5.0] — 2026-10-18
 
 ### Adicionado

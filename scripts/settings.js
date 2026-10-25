@@ -55,6 +55,15 @@ export function registerSettings() {
     default: true
   });
 
+  game.settings.register(MODULE_ID, SETTINGS.AUTO_NODE_SCENE, {
+    name: "SPIREMAP.settings.autoNodeScene.name",
+    hint: "SPIREMAP.settings.autoNodeScene.hint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false
+  });
+
   game.settings.register(MODULE_ID, SETTINGS.AUTO_PREVIEW, {
     name: "SPIREMAP.settings.autoPreview.name",
     hint: "SPIREMAP.settings.autoPreview.hint",

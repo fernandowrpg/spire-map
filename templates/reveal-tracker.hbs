@@ -28,6 +28,19 @@
       {{/if}}
     </header>
 
+    {{#if viewingElsewhere}}
+      <div class="spire-box spire-nodescene__away">
+        <p>
+          <i class="fa-solid fa-map"></i>
+          {{localize "SPIREMAP.nodeScene.away" name=viewedName}}
+        </p>
+        <button type="button" class="spire-btn spire-btn--primary" data-action="spireBackToMap"
+                data-tooltip="{{localize 'SPIREMAP.nodeScene.backHint'}}">
+          <i class="fa-solid fa-diagram-project"></i> {{localize "SPIREMAP.nodeScene.back"}}
+        </button>
+      </div>
+    {{/if}}
+
     {{#unless secret}}
       <p class="spire-warn">
         <i class="fa-solid fa-triangle-exclamation"></i>
@@ -134,6 +147,7 @@
                   <span class="hint">{{localize "SPIREMAP.preview.floor"}} {{floor}} · {{localize "SPIREMAP.journal.column"}} {{col}}</span>
                 </span>
                 {{#if secretPath}}<i class="fa-solid fa-key" data-tooltip="{{localize 'SPIREMAP.secretPath.node'}}"></i>{{/if}}
+                {{#if hasScene}}<i class="fa-solid fa-map" data-tooltip="{{localize 'SPIREMAP.nodeScene.hasScene'}}"></i>{{/if}}
                 {{#unless revealed}}<i class="fa-solid fa-lock" data-tooltip="{{localize 'SPIREMAP.reveal.stateHidden'}}"></i>{{/unless}}
                 {{#if ../vote}}
                   <span class="spire-vote__count {{#if isLeader}}is-leader{{/if}}" data-tooltip="{{voters}}">{{votes}}</span>
@@ -175,6 +189,41 @@
                   <i class="fa-solid fa-shoe-prints"></i> {{localize "SPIREMAP.reveal.force"}}
                 </button>
               {{/if}}
+            </div>
+
+            {{!-- Cena do mundo associada ao nó: ativá-la leva os tokens dos jogadores para lá --}}
+            <div class="spire-box spire-dropzone spire-nodescene" data-node-id="{{selected.id}}">
+              <p>
+                <i class="fa-solid fa-map"></i>
+                <strong>{{localize "SPIREMAP.nodeScene.title"}}</strong>
+                {{#if selected.nodeScene.active}}<span class="spire-badge">{{localize "SPIREMAP.nodeScene.isActive"}}</span>{{/if}}
+              </p>
+              <label class="spire-field">
+                <span>{{localize "SPIREMAP.nodeScene.scene"}}</span>
+                <select name="__nodeScene" data-node-id="{{selected.id}}">
+                  <option value="">— {{localize "SPIREMAP.nodeScene.noneOption"}} —</option>
+                  {{#each selected.sceneOptions}}
+                    <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                  {{/each}}
+                </select>
+              </label>
+              {{#if selected.nodeScene}}
+                {{#if selected.nodeScene.missing}}
+                  <p class="spire-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "SPIREMAP.nodeScene.missing"}}</p>
+                {{else}}
+                  <div class="spire-toolbar spire-toolbar--wrap">
+                    <button type="button" class="spire-btn spire-btn--primary" data-action="spireActivateScene"
+                            data-node-id="{{selected.id}}" data-tooltip="{{localize 'SPIREMAP.nodeScene.activateHint'}}">
+                      <i class="fa-solid fa-person-walking-arrow-right"></i> {{localize "SPIREMAP.nodeScene.activate"}}
+                    </button>
+                    <button type="button" class="spire-btn spire-btn--ghost" data-action="spireViewScene"
+                            data-node-id="{{selected.id}}" data-tooltip="{{localize 'SPIREMAP.nodeScene.viewHint'}}">
+                      <i class="fa-solid fa-eye"></i> {{localize "SPIREMAP.nodeScene.view"}}
+                    </button>
+                  </div>
+                {{/if}}
+              {{/if}}
+              <p class="hint">{{localize "SPIREMAP.nodeScene.hint"}}</p>
             </div>
 
             {{!-- Caminho secreto: o nó faz parte de um, ou é a chave de um --}}
