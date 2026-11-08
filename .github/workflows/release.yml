@@ -1,0 +1,145 @@
+name: Release
+
+# Publica uma release sozinho a cada push na main: se a versão do module.json ainda não tem
+# release, cria a tag vX.Y.Z, monta o zip e publica com as notas da versão tiradas do
+# CHANGELOG.md. Se a release já existe, não faz nada — então basta subir a versão no
+# module.json (e no CHANGELOG) junto com as mudanças.
+#
+# Também roda ao empurrar uma tag "vX.Y.Z" ou à mão (Actions -> Release -> Run workflow).
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # precisa das tags para saber se a tag já existe
+
+      - name: Instalar o Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Descobrir a versão
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(node -p "require('./module.json').version")"
+          fi
+          TAG="v${VERSION}"
+          echo "value=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "A release $TAG já existe — nada a publicar."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Publicando a versão ${VERSION}"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Injetar versão e URLs no manifesto
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          node tools/prepare-manifest.mjs \
+            "${{ steps.version.outputs.value }}" \
+            "${{ github.server_url }}/${{ github.repository }}"
+
+      - name: Validar o módulo
+        if: steps.version.outputs.publish == 'true'
+        run: node tools/check-module.mjs
+
+      - name: Montar o pacote
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          # Os arquivos vão na RAIZ do zip — é o formato que o instalador do Foundry espera.
+          # docs/ e tools/ ficam de fora para o download não carregar as imagens do README.
+          ITEMS="module.json lang scripts styles templates"
+          for OPTIONAL in LICENSE README.md CHANGELOG.md; do
+            [ -e "$OPTIONAL" ] && ITEMS="$ITEMS $OPTIONAL"
+          done
+          echo "Empacotando: $ITEMS"
+          zip -r spire-map.zip $ITEMS -x "*.DS_Store" "*/.*"
+          unzip -l spire-map.zip
+
+      - name: Escrever as notas da release
+        if: steps.version.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          REPO_URL="${{ github.server_url }}/${{ github.repository }}"
+          MANIFEST_URL="${REPO_URL}/releases/latest/download/module.json"
+
+          # Seção "## [X.Y.Z]" do CHANGELOG, sem o título, até a próxima versão.
+          awk -v v="$VERSION" '
+            /^## \[/ { if (found) exit; if (index($0, "## [" v "]") == 1) { found = 1; next } }
+            found { print }
+          ' CHANGELOG.md | sed 's/^### /#### /' > changes.md
+
+          {
+            echo "## Novidades"
+            if [ -s changes.md ]; then
+              cat changes.md
+            else
+              echo
+              echo "Veja o [CHANGELOG](${REPO_URL}/blob/main/CHANGELOG.md)."
+            fi
+            echo
+            echo "Detalhes no [CHANGELOG](${REPO_URL}/blob/main/CHANGELOG.md)."
+            echo
+            echo "## Instalação"
+            echo
+            echo "No Foundry VTT: **Add-on Modules → Install Module**, cole em *Manifest URL*:"
+            echo
+            echo '```'
+            echo "${MANIFEST_URL}"
+            echo '```'
+            echo
+            echo "Quem já tem o módulo instalado por essa URL vê a atualização direto na lista de módulos."
+            echo
+            echo "## Arquivos"
+            echo
+            echo '- `spire-map.zip` — o módulo (arquivos na raiz, para o instalador do Foundry)'
+            echo '- `module.json` — o manifesto desta versão'
+          } > release-notes.md
+          cat release-notes.md
+
+      - name: Criar a release
+        if: steps.version.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          # Num push na main (ou disparo manual), a tag ainda não existe: marca este commit.
+          if ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            git tag "$TAG" "$GITHUB_SHA"
+            git push origin "$TAG"
+          fi
+
+          gh release create "$TAG" \
+            --title "Spire Map $VERSION" \
+            --notes-file release-notes.md \
+            --latest \
+            module.json spire-map.zip

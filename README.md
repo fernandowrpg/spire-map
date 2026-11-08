@@ -397,14 +397,17 @@ arquivos na raiz do zip, que é o formato que o instalador do Foundry espera) e 
 https://github.com/fernandowrpg/spire-map/releases/latest/download/module.json
 ```
 
-Para publicar pelo site: **Releases → Create a new release**, tag `vX.Y.Z`, e anexe os dois
-arquivos. O `module.json` precisa ser anexado — é ele que responde naquela URL.
+A publicação é **automática**: o workflow `.github/workflows/release.yml` roda a cada push na
+`main` e, se a versão do `module.json` ainda não tem release, cria a tag `vX.Y.Z`, monta o zip,
+valida o módulo e publica a release com as notas daquela versão tiradas do `CHANGELOG.md`. Se a
+release já existe, ele não faz nada. Para lançar uma versão nova, basta:
 
-Se quiser que o GitHub monte o zip sozinho, o arquivo `docs/workflow-release.yml.txt` é um
-workflow pronto do GitHub Actions. Para ativá-lo: **Add file → Create new file**, digite o
-caminho `.github/workflows/release.yml` (as barras criam as pastas), cole o conteúdo do `.txt`
-e faça o commit. Depois, em **Settings → Actions → General → Workflow permissions**, marque
-*Read and write permissions*. A partir daí, publicar é **Actions → Release → Run workflow**.
+1. subir `version` (e o `download`, que aponta para `v<versão>`) no `module.json`;
+2. abrir a seção `## [X.Y.Z] — data` no topo do `CHANGELOG.md`;
+3. fazer o commit e o push na `main`.
+
+Ele também pode ser disparado à mão em **Actions → Release → Run workflow** (usa a versão do
+`module.json`) ou empurrando uma tag `vX.Y.Z`.
 
 Antes de publicar, dá para validar o módulo (precisa de Node instalado):
 
@@ -442,7 +445,7 @@ spire-map/
 ├── styles/
 │   └── spire-map.css
 ├── tools/                 check-module.mjs e prepare-manifest.mjs (validação, opcional)
-└── docs/                  imagens do README e o workflow pronto para o Actions
+└── docs/                  imagens do README
 ```
 
 ---

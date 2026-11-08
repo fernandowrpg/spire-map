@@ -18,6 +18,12 @@ Todas as mudanças relevantes deste módulo. O formato segue
   um tipo que tem cena já leva o grupo para ela.
 - API: `SpireMap.setTypeScene()` e `typeScenes()`.
 
+### Infraestrutura
+
+- **Release automática.** O workflow `.github/workflows/release.yml` publica a release sozinho a
+  cada push na `main` cuja versão do `module.json` ainda não tenha release, com as notas tiradas
+  do CHANGELOG. O antigo `docs/workflow-release.yml.txt` foi removido.
+
 ## [1.6.0] — 2026-10-25
 
 ### Adicionado
