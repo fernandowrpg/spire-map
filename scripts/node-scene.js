@@ -5,11 +5,85 @@
  * ativá-la, o módulo coloca nela os tokens dos personagens dos jogadores — os que ainda não
  * estão lá — e ativa a cena para todos. Voltar ao mapa é ativar de novo a cena do mapa.
  *
+ * Um **tipo** de sala também pode ter uma cena (a Loja sempre abre a mesma cena, por exemplo).
+ * Ela fica num setting do mundo, vale para todo mapa e para todo nó desse tipo — inclusive a
+ * sala "?" que o Mestre definiu como desse tipo. A cena do próprio nó, quando existe, tem
+ * prioridade sobre a do tipo.
+ *
  * @module spire-map/node-scene
  */
 
 import { MODULE_ID, SETTINGS } from "./constants.js";
-import { sceneOf } from "./progress.js";
+import { sceneOf, indexNodes } from "./progress.js";
+
+/* -------------------------------------------------------------------------- */
+/*  Cena por tipo de sala                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Cenas associadas aos tipos de sala.
+ * @returns {{typeId:string, uuid:string, name:string, img:string}[]}
+ */
+export function typeScenes() {
+  try {
+    const list = game.settings.get(MODULE_ID, SETTINGS.TYPE_SCENES);
+    return Array.isArray(list) ? list.filter((e) => e?.typeId && e?.uuid) : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+/** Cena associada a um tipo de sala, ou `null`. */
+export function typeSceneOf(typeId, list = typeScenes()) {
+  return list.find((e) => e.typeId === typeId) ?? null;
+}
+
+/**
+ * Associa uma cena a um tipo de sala (`scene` vazio desfaz).
+ * @param {string} typeId
+ * @param {{uuid:string, name:string, img?:string}|null} scene
+ */
+export async function setTypeScene(typeId, scene) {
+  if (!typeId) return;
+  const list = typeScenes().filter((e) => e.typeId !== typeId);
+  if (scene?.uuid) {
+    list.push({
+      typeId: String(typeId),
+      uuid: String(scene.uuid),
+      name: String(scene.name ?? "").trim().slice(0, 120) || "?",
+      img: String(scene.img ?? "")
+    });
+  }
+  await game.settings.set(MODULE_ID, SETTINGS.TYPE_SCENES, list);
+}
+
+/**
+ * Tipo efetivo de um nó para escolher a cena: o tipo definido da sala "?", se houver.
+ * @returns {string|null}
+ */
+export function effectiveTypeId(map, progress, node) {
+  if (!node) return null;
+  const resolution = (progress?.resolved ?? []).find((r) => r.id === node.id);
+  if (resolution && map?.config?.nodeTypes?.some((t) => t.id === resolution.typeId)) return resolution.typeId;
+  return node.typeId ?? null;
+}
+
+/**
+ * Cena que o nó abre: a do próprio nó ou, sem ela, a do tipo da sala.
+ * @param {object} map
+ * @param {object} progress
+ * @param {string} nodeId
+ * @param {object[]} [list] cenas por tipo (para não reler o setting a cada nó)
+ * @returns {{uuid:string, name:string, img:string, source:"node"|"type", typeId?:string}|null}
+ */
+export function nodeSceneEntry(map, progress, nodeId, list = typeScenes()) {
+  const own = sceneOf(progress, nodeId);
+  if (own) return { ...own, source: "node" };
+  const node = map ? indexNodes(map).get(nodeId) : null;
+  const typeId = effectiveTypeId(map, progress, node);
+  const byType = typeId ? typeSceneOf(typeId, list) : null;
+  return byType ? { ...byType, source: "type" } : null;
+}
 
 /**
  * Personagens dos jogadores: o personagem atribuído a cada jogador conectado. Sem nenhum
@@ -60,14 +134,16 @@ export async function placePartyTokens(scene) {
 }
 
 /**
- * Ativa a cena associada a um nó, levando os tokens dos jogadores para ela.
+ * Ativa a cena associada a um nó (a dele ou a do tipo da sala), levando os tokens dos
+ * jogadores para ela.
  * @param {object} progress progresso do mapa (de onde sai a associação)
  * @param {string} nodeId
+ * @param {object} [map] mapa — sem ele, só vale a cena do próprio nó
  * @returns {Promise<{ok:boolean, error?:string, scene?:Scene, placed?:number}>}
  */
-export async function activateNodeScene(progress, nodeId) {
+export async function activateNodeScene(progress, nodeId, map = null) {
   if (!game.user.isGM) return { ok: false, error: "notGM" };
-  const entry = sceneOf(progress, nodeId);
+  const entry = nodeSceneEntry(map, progress, nodeId);
   if (!entry) return { ok: false, error: "noScene" };
 
   let scene = null;

@@ -7,8 +7,8 @@
  * reiniciar o progresso.
  *
  * Também é aqui que o Mestre define o que uma sala "?" revelou ser, libera caminhos secretos
- * na mão, arrasta o adversário para o nó do boss e associa a cada nó uma cena do mundo, que pode
- * ser ativada com os tokens dos jogadores já colocados nela.
+ * na mão, arrasta o adversário para o nó do boss e associa a cada nó — ou a cada tipo de sala,
+ * como a Loja — uma cena do mundo, que pode ser ativada com os tokens dos jogadores já colocados nela.
  *
  * @module spire-map/apps/reveal-tracker
  */
@@ -49,7 +49,15 @@ import {
   setNodeScene,
   clearNodeScene
 } from "../progress.js";
-import { activateNodeScene } from "../node-scene.js";
+import {
+  activateNodeScene,
+  autoActivateEnabled,
+  effectiveTypeId,
+  nodeSceneEntry,
+  setTypeScene,
+  typeSceneOf,
+  typeScenes
+} from "../node-scene.js";
 import { smartLocalize } from "../i18n.js";
 import { readVote, tally, activeVoters, startVote, closeVote, cancelVote } from "../vote.js";
 
@@ -165,7 +173,8 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
     const owner = viewed
       ? game.scenes?.find((s) =>
           (s.getFlag(MODULE_ID, FLAG.PROGRESS)?.scenes ?? []).some((e) => e.uuid === viewed.uuid)
-        )
+        ) ??
+        (typeScenes().some((e) => e.uuid === viewed.uuid) ? game.scenes?.find((s) => readSceneMap(s)) : null)
       : null;
     return owner ?? viewed;
   }
@@ -201,6 +210,7 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
       keyOf.get(path.key).push({ id: path.id, unlocked: unlocked.has(path.id) });
     }
 
+    const byType = typeScenes();
     const describe = (node) => {
       const display = show(node);
       const type = display.type;
@@ -228,7 +238,7 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
         isAvailable: state === NODE_STATE.AVAILABLE,
         isVisited: state === NODE_STATE.VISITED || state === NODE_STATE.CURRENT,
         revealed: (progress.revealed ?? []).includes(node.id),
-        hasScene: Boolean(sceneOf(progress, node.id)),
+        hasScene: Boolean(nodeSceneEntry(map, progress, node.id, byType)),
         isBoss: node.isBoss
       };
     };
@@ -281,7 +291,7 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
         })),
         isBossNode: isBossNode(map, selected),
         adversary: adversaryOf(progress, selected.id),
-        ...SpireRevealTracker.#sceneChoice(scene, sceneOf(progress, selected.id))
+        ...SpireRevealTracker.#sceneChoice(scene, map, progress, selected, byType)
       };
     }
 
@@ -384,21 +394,51 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
   }
 
   /**
-   * Cena associada ao nó selecionado e as opções do seletor (todas as cenas do mundo, menos a
-   * do mapa). Uma cena apagada continua listada, marcada como ausente.
+   * Opções de um seletor de cena (todas as cenas do mundo, menos a do mapa). Uma cena apagada
+   * continua listada, como a escolhida.
    * @param {Scene} mapScene
    * @param {{uuid:string,name:string}|null} entry
    */
-  static #sceneChoice(mapScene, entry) {
+  static #sceneOptions(mapScene, entry) {
     const options = (game.scenes?.contents ?? [])
       .filter((s) => s.id !== mapScene.id)
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((s) => ({ value: s.uuid, label: s.name, selected: s.uuid === entry?.uuid }));
-    const missing = Boolean(entry) && !options.some((o) => o.selected);
-    if (missing) options.unshift({ value: entry.uuid, label: entry.name, selected: true });
+    if (entry && !options.some((o) => o.selected)) {
+      options.unshift({ value: entry.uuid, label: entry.name, selected: true });
+    }
+    return options;
+  }
+
+  /**
+   * Cena do nó selecionado: a própria e a do tipo da sala, cada uma com o seu seletor, e a que
+   * vale de fato (a do nó tem prioridade).
+   */
+  static #sceneChoice(mapScene, map, progress, node, byType) {
+    const own = sceneOf(progress, node.id);
+    const typeId = effectiveTypeId(map, progress, node);
+    const type = map.config.nodeTypes.find((t) => t.id === typeId);
+    const ofType = typeSceneOf(typeId, byType);
+    const entry = nodeSceneEntry(map, progress, node.id, byType);
+    const exists = (e) => Boolean(game.scenes?.some((s) => s.uuid === e.uuid));
     return {
-      nodeScene: entry ? { ...entry, missing, active: game.scenes?.active?.uuid === entry.uuid } : null,
-      sceneOptions: options
+      nodeScene: entry
+        ? {
+            ...entry,
+            fromType: entry.source === "type",
+            missing: !exists(entry),
+            active: game.scenes?.active?.uuid === entry.uuid
+          }
+        : null,
+      sceneOptions: SpireRevealTracker.#sceneOptions(mapScene, own),
+      typeScene: {
+        typeId,
+        label: smartLocalize(type?.label ?? typeId),
+        options: SpireRevealTracker.#sceneOptions(mapScene, ofType),
+        isSet: Boolean(ofType),
+        missing: Boolean(ofType) && !exists(ofType),
+        overridden: Boolean(own && ofType)
+      }
     };
   }
 
@@ -459,6 +499,21 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
       : clearNodeScene(state.map, state.progress, nodeId);
     await setProgress(this.scene, progress);
     this.selectedNodeId = nodeId;
+    this.render();
+  }
+
+  /** Associa uma cena do mundo a um tipo de sala (`uuid` vazio desfaz): vale para todo nó dele. */
+  async #setTypeScene(typeId, uuid) {
+    if (!typeId) return;
+    let scene = null;
+    if (uuid) {
+      scene = await fromUuid(uuid).catch(() => null);
+      if (!(scene instanceof Scene)) {
+        ui.notifications.warn(game.i18n.localize("SPIREMAP.nodeScene.missing"));
+        return;
+      }
+    }
+    await setTypeScene(typeId, scene ? { uuid: scene.uuid, name: scene.name, img: scene.thumb ?? "" } : null);
     this.render();
   }
 
@@ -539,6 +594,7 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
     }
 
     if (el.name === "__nodeScene") await this.#setScene(el.dataset.nodeId, el.value);
+    if (el.name === "__typeScene") await this.#setTypeScene(el.dataset.typeId, el.value);
   }
 
   /* ------------------------------- ações ------------------------------ */
@@ -604,13 +660,14 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
     const nodeId = target.dataset.nodeId ?? this.selectedNodeId;
     const state = this.#fresh();
     if (!nodeId || !state) return;
-    SpireRevealTracker.#notifyActivation(await activateNodeScene(state.progress, nodeId));
+    SpireRevealTracker.#notifyActivation(await activateNodeScene(state.progress, nodeId, state.map));
     this.render();
   }
 
   /** Só o Mestre olha a cena, sem ativá-la para os jogadores. */
   static async #onViewScene(event, target) {
-    const entry = sceneOf(this.#fresh()?.progress, target.dataset.nodeId ?? this.selectedNodeId);
+    const state = this.#fresh();
+    const entry = state ? nodeSceneEntry(state.map, state.progress, target.dataset.nodeId ?? this.selectedNodeId) : null;
     const scene = entry ? await fromUuid(entry.uuid).catch(() => null) : null;
     if (scene instanceof Scene) await scene.view();
     else ui.notifications.warn(game.i18n.localize("SPIREMAP.nodeScene.missing"));
@@ -641,6 +698,13 @@ export class SpireRevealTracker extends HandlebarsApplicationMixin(ApplicationV2
     // Só anuncia o que os jogadores já podem ver: a sala precisa ter sido escolhida.
     if (state.map.config.announceReveal && (result.progress.visited ?? []).includes(nodeId)) {
       await announceResolution(state.map, result.progress, nodeId);
+    }
+    // A sala "?" do grupo virou, por exemplo, uma Loja: com a ativação automática, vai para a cena dela.
+    const entered = result.progress.current === nodeId;
+    const before = nodeSceneEntry(state.map, state.progress, nodeId);
+    const after = nodeSceneEntry(state.map, result.progress, nodeId);
+    if (entered && autoActivateEnabled() && after && after.uuid !== before?.uuid) {
+      SpireRevealTracker.#notifyActivation(await activateNodeScene(result.progress, nodeId, state.map));
     }
     this.render();
   }

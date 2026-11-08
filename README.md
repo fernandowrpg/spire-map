@@ -235,6 +235,10 @@ Abre pelo botão do olho na barra de ferramentas, por `Alt + R`, ou junto com o 
   abre a cena apenas para o Mestre. Fora do mapa, o controle continua mostrando o mapa e
   oferece **Voltar ao mapa**. Com a configuração *Ativar a cena do nó automaticamente*
   (desligada por padrão), escolher a sala já leva o grupo para a cena dela.
+* **Cena por tipo de sala** — no mesmo quadro, *Cena de toda sala Loja* (ou do tipo do nó
+  selecionado) associa uma cena ao **tipo**: toda Loja de qualquer mapa do mundo abre essa
+  cena, inclusive a sala "?" definida como Loja. Uma cena escolhida para o próprio nó tem
+  prioridade sobre a do tipo.
 
 O estado vive na flag `spire-map.progress` da cena, então sobrevive a recarregar o mundo,
 aparece igual para todos os clientes e continua de onde parou na sessão seguinte. Se você
@@ -371,6 +375,10 @@ SpireMap.bossHistory();
 await SpireMap.setNodeScene("f4c2", game.scenes.getName("Covil do Dragão"));
 await SpireMap.activateNodeScene("f4c2");
 await SpireMap.placePartyTokens(game.scenes.getName("Acampamento"));
+
+// Cena por tipo de sala: toda Loja abre esta cena (a cena do próprio nó tem prioridade)
+await SpireMap.setTypeScene("shop", game.scenes.getName("Loja do Anão"));
+SpireMap.typeScenes();   // [{ typeId, uuid, name, img }]
 ```
 
 Cada *Drawing* de nó guarda os dados do nó em

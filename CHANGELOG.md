@@ -4,6 +4,20 @@ Todas as mudanças relevantes deste módulo. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões usam
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.7.0] — 2026-11-08
+
+### Adicionado
+
+- **Cena por tipo de sala.** Além da cena de cada nó, um tipo de sala pode ter uma cena: escolha
+  *Cena de toda sala Loja* (ou de qualquer outro tipo) no nó selecionado do controle de
+  revelação, e toda Loja — em qualquer mapa do mundo, inclusive os gerados depois — passa a
+  abrir essa cena com **Ativar cena** ou com a ativação automática. A sala "?" definida como
+  Loja também usa a cena da Loja. A cena escolhida para o próprio nó tem prioridade sobre a do
+  tipo, e o seletor do nó oferece *usar a do tipo*.
+- Com *Ativar a cena do nó automaticamente* ligada, definir a sala "?" em que o grupo está como
+  um tipo que tem cena já leva o grupo para ela.
+- API: `SpireMap.setTypeScene()` e `typeScenes()`.
+
 ## [1.6.0] — 2026-10-25
 
 ### Adicionado

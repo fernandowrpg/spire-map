@@ -305,7 +305,7 @@
   "SPIREMAP.settings.autoNodeScene.name": "Activate the node's scene automatically",
   "SPIREMAP.settings.autoNodeScene.hint": "When the party enters a node that has a linked scene, activate that scene and place the players' tokens in it.",
   "SPIREMAP.nodeScene.title": "Node scene",
-  "SPIREMAP.nodeScene.scene": "Scene",
+  "SPIREMAP.nodeScene.scene": "This room's scene",
   "SPIREMAP.nodeScene.noneOption": "none",
   "SPIREMAP.nodeScene.isActive": "active",
   "SPIREMAP.nodeScene.hasScene": "Has a linked scene",
@@ -319,5 +319,10 @@
   "SPIREMAP.nodeScene.activated": "Scene \"{name}\" activated — {count} token(s) placed.",
   "SPIREMAP.nodeScene.away": "You are in \"{name}\". The tracker keeps showing the map.",
   "SPIREMAP.nodeScene.back": "Back to the map",
-  "SPIREMAP.nodeScene.backHint": "Activates the map scene again for everyone."
+  "SPIREMAP.nodeScene.backHint": "Activates the map scene again for everyone.",
+  "SPIREMAP.nodeScene.useTypeOption": "use the type's",
+  "SPIREMAP.nodeScene.typeScene": "Scene for every {type} room",
+  "SPIREMAP.nodeScene.typeHint": "Applies to every room of this type, on any map in the world — including a \"?\" room resolved as this type. This room's own scene, if chosen, takes priority.",
+  "SPIREMAP.nodeScene.fromType": "Using the scene for every {type} room: \"{name}\".",
+  "SPIREMAP.nodeScene.overridesType": "This room uses its own scene instead of the scene for every {type} room."
 }

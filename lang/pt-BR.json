@@ -305,7 +305,7 @@
   "SPIREMAP.settings.autoNodeScene.name": "Ativar a cena do nó automaticamente",
   "SPIREMAP.settings.autoNodeScene.hint": "Quando o grupo entra em um nó que tem uma cena associada, ativa essa cena e coloca nela os tokens dos jogadores.",
   "SPIREMAP.nodeScene.title": "Cena do nó",
-  "SPIREMAP.nodeScene.scene": "Cena",
+  "SPIREMAP.nodeScene.scene": "Cena desta sala",
   "SPIREMAP.nodeScene.noneOption": "nenhuma",
   "SPIREMAP.nodeScene.isActive": "ativa",
   "SPIREMAP.nodeScene.hasScene": "Tem uma cena associada",
@@ -319,5 +319,10 @@
   "SPIREMAP.nodeScene.activated": "Cena \"{name}\" ativada — {count} token(s) colocado(s).",
   "SPIREMAP.nodeScene.away": "Você está em \"{name}\". O controle continua mostrando o mapa.",
   "SPIREMAP.nodeScene.back": "Voltar ao mapa",
-  "SPIREMAP.nodeScene.backHint": "Ativa de novo a cena do mapa para todos."
+  "SPIREMAP.nodeScene.backHint": "Ativa de novo a cena do mapa para todos.",
+  "SPIREMAP.nodeScene.useTypeOption": "usar a do tipo",
+  "SPIREMAP.nodeScene.typeScene": "Cena de toda sala {type}",
+  "SPIREMAP.nodeScene.typeHint": "Vale para todas as salas deste tipo, em qualquer mapa do mundo — inclusive a sala \"?\" definida como este tipo. A cena desta sala, se escolhida, tem prioridade.",
+  "SPIREMAP.nodeScene.fromType": "Usando a cena de toda sala {type}: \"{name}\".",
+  "SPIREMAP.nodeScene.overridesType": "Esta sala usa a própria cena no lugar da cena de toda sala {type}."
 }

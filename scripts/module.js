@@ -26,7 +26,7 @@ import { smartLocalize } from "./i18n.js";
 import { registerSettings, getStoredConfig } from "./settings.js";
 import { Rng, randomSeedString } from "./rng.js";
 import { registerVoting, startVote, closeVote, cancelVote, readVote } from "./vote.js";
-import { activateNodeScene, placePartyTokens } from "./node-scene.js";
+import { activateNodeScene, placePartyTokens, setTypeScene, typeScenes } from "./node-scene.js";
 
 const log = (...args) => console.log(`${MODULE_ID} |`, ...args);
 
@@ -186,8 +186,24 @@ Hooks.once("init", async () => {
     async activateNodeScene(nodeId, scene = canvas?.scene ?? game.scenes?.active) {
       const found = readSceneMap(scene);
       if (!found) return { ok: false, error: "noMap" };
-      return activateNodeScene(found.progress ?? {}, nodeId);
+      return activateNodeScene(found.progress ?? {}, nodeId, found.map);
     },
+
+    /**
+     * Associa uma cena do mundo a um tipo de sala (ex.: `"shop"`): todo nó desse tipo abre essa
+     * cena, a não ser que tenha uma cena própria.
+     * @param {string} typeId
+     * @param {Scene|string|null} target cena ou uuid; `null` desfaz
+     */
+    async setTypeScene(typeId, target) {
+      if (!target) return setTypeScene(typeId, null);
+      const doc = typeof target === "string" ? await fromUuid(target) : target;
+      if (!(doc instanceof Scene)) return { ok: false, error: "missingScene" };
+      return setTypeScene(typeId, { uuid: doc.uuid, name: doc.name, img: doc.thumb ?? "" });
+    },
+
+    /** Cenas associadas aos tipos de sala. */
+    typeScenes: () => typeScenes(),
 
     /** Coloca os tokens dos personagens dos jogadores em uma cena (sem ativá-la). */
     placePartyTokens: (scene) => placePartyTokens(scene),

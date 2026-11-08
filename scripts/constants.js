@@ -16,7 +16,9 @@ export const SETTINGS = {
   /** Abre a votação do caminho sozinha a cada avanço do grupo. */
   AUTO_VOTE: "autoVote",
   /** Ativa sozinha a cena associada ao nó quando o grupo entra nele. */
-  AUTO_NODE_SCENE: "autoNodeScene"
+  AUTO_NODE_SCENE: "autoNodeScene",
+  /** Cena do mundo associada a um tipo de sala (ex.: Loja): vale para todo nó desse tipo. */
+  TYPE_SCENES: "typeScenes"
 };
 
 /** Flag namespace usado em todos os documentos criados pelo módulo. */

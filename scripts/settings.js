@@ -6,6 +6,7 @@
 import { MODULE_ID, SETTINGS, DEFAULT_CONFIG } from "./constants.js";
 import { normalizeConfig } from "./generator.js";
 import { SpireMapPanel } from "./apps/map-panel.js";
+import { SpireRevealTracker } from "./apps/reveal-tracker.js";
 
 export function registerSettings() {
   /* Configuração padrão persistida (editada pelo próprio painel). */
@@ -34,6 +35,16 @@ export function registerSettings() {
     config: false,
     type: Array,
     default: []
+  });
+
+  /* Cena associada a cada tipo de sala — vale para todos os mapas do mundo. */
+  game.settings.register(MODULE_ID, SETTINGS.TYPE_SCENES, {
+    name: "Type scenes",
+    scope: "world",
+    config: false,
+    type: Array,
+    default: [],
+    onChange: () => SpireRevealTracker.refreshIfOpen()
   });
 
   game.settings.register(MODULE_ID, SETTINGS.SHOW_SCENE_BUTTON, {

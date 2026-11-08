@@ -201,12 +201,28 @@
               <label class="spire-field">
                 <span>{{localize "SPIREMAP.nodeScene.scene"}}</span>
                 <select name="__nodeScene" data-node-id="{{selected.id}}">
-                  <option value="">— {{localize "SPIREMAP.nodeScene.noneOption"}} —</option>
+                  <option value="">— {{#if selected.typeScene.isSet}}{{localize "SPIREMAP.nodeScene.useTypeOption"}}{{else}}{{localize "SPIREMAP.nodeScene.noneOption"}}{{/if}} —</option>
                   {{#each selected.sceneOptions}}
                     <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
                   {{/each}}
                 </select>
               </label>
+              {{!-- Cena do tipo da sala: toda sala desse tipo (em qualquer mapa) abre essa cena --}}
+              <label class="spire-field" data-tooltip="{{localize 'SPIREMAP.nodeScene.typeHint'}}">
+                <span>{{localize "SPIREMAP.nodeScene.typeScene" type=selected.typeScene.label}}</span>
+                <select name="__typeScene" data-type-id="{{selected.typeScene.typeId}}">
+                  <option value="">— {{localize "SPIREMAP.nodeScene.noneOption"}} —</option>
+                  {{#each selected.typeScene.options}}
+                    <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                  {{/each}}
+                </select>
+              </label>
+              {{#if selected.typeScene.overridden}}
+                <p class="hint"><i class="fa-solid fa-circle-info"></i> {{localize "SPIREMAP.nodeScene.overridesType" type=selected.typeScene.label}}</p>
+              {{/if}}
+              {{#if selected.nodeScene.fromType}}
+                <p class="hint"><i class="fa-solid fa-shapes"></i> {{localize "SPIREMAP.nodeScene.fromType" type=selected.typeScene.label name=selected.nodeScene.name}}</p>
+              {{/if}}
               {{#if selected.nodeScene}}
                 {{#if selected.nodeScene.missing}}
                   <p class="spire-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "SPIREMAP.nodeScene.missing"}}</p>
