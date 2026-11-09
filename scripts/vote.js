@@ -103,7 +103,17 @@ function cardHtml(scene, vote, status = "open", winner = null) {
   const { counts, voters, total } = tally(vote);
   const expected = activeVoters().length;
 
-  const rows = vote.options
+  // Mesma ordem do mapa (esquerda → direita), não a ordem interna das opções.
+  const position = (id) => {
+    const node = data.map.nodes.find((n) => n.id === id);
+    return node ? [node.col, node.floor] : [Infinity, Infinity];
+  };
+  const rows = [...vote.options]
+    .sort((a, b) => {
+      const [ca, fa] = position(a);
+      const [cb, fb] = position(b);
+      return ca - cb || fa - fb;
+    })
     .map((id) => {
       const o = optionLabel(data.map, progress, id);
       const names = voters.get(id) ?? [];

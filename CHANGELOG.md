@@ -4,6 +4,14 @@ Todas as mudanças relevantes deste módulo. O formato segue
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões usam
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.7.1] — 2026-11-09
+
+### Corrigido
+
+- **Ordem das opções na votação.** O cartão de votação no chat agora lista as salas na mesma
+  ordem do mapa, da esquerda para a direita (por coluna), em vez da ordem interna das opções —
+  antes a última opção do cartão nem sempre era a coluna mais à direita.
+
 ## [1.7.0] — 2026-11-08
 
 ### Adicionado
